@@ -19,6 +19,7 @@ from .models import (
     PlaylistVideo,
     Video,
     _text,
+    parse_count,
 )
 
 __all__ = [
@@ -114,6 +115,19 @@ def parse_playlist_details(
     response: dict[str, Any], playlist_id: str
 ) -> PlaylistDetails:
     """Extract lightweight metadata from a playlist browse response."""
+    header = response.get("header", {}) if isinstance(response, dict) else {}
+    header_renderer = header.get("playlistHeaderRenderer", {})
+    if isinstance(header_renderer, dict):
+        title = _text(header_renderer.get("title"))
+        owner = _text(header_renderer.get("ownerText"))
+        count_text = _text(header_renderer.get("numVideosText"))
+        if title or owner or count_text:
+            return PlaylistDetails(
+                playlist_id=playlist_id,
+                title=title,
+                owner_name=owner,
+                video_count=parse_count(count_text),
+            )
     for key, renderer in iter_renderers(response):
         if key in {"playlistHeaderRenderer", "playlistSidebarPrimaryInfoRenderer"}:
             return PlaylistDetails(

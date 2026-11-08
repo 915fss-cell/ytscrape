@@ -66,7 +66,11 @@ class AsyncPlaylistResults(AsyncExportable):
 
 
 class AsyncPlaylistCollection:
-    """Async lazy deduplicating view over several playlists."""
+    """Async deduplicated view with complete playlist associations.
+
+    Results are buffered until all supplied playlists have been visited so a
+    video yielded once always contains every playlist it was found in.
+    """
 
     def __init__(
         self, youtube: Any, playlists: Any, *, max_results: int | None = None
@@ -82,29 +86,31 @@ class AsyncPlaylistCollection:
         from dataclasses import replace
 
         seen: dict[str, Any] = {}
-        emitted = 0
+        order: list[str] = []
         for playlist_id in self.playlist_ids:
             try:
-                entries = await self._youtube.playlist(
-                    playlist_id, max_results=self.max_results
-                )
+                entries = await self._youtube.playlist(playlist_id)
                 async for entry in entries:
                     if not entry.video_id:
                         continue
                     current = seen.get(entry.video_id)
                     if current is None:
-                        current = replace(entry, playlist_ids=(playlist_id,))
-                        seen[entry.video_id] = current
-                        yield current
-                        emitted += 1
-                        if self.max_results is not None and emitted >= self.max_results:
-                            return
+                        seen[entry.video_id] = replace(
+                            entry, playlist_ids=(playlist_id,)
+                        )
+                        order.append(entry.video_id)
                     elif playlist_id not in current.playlist_ids:
                         seen[entry.video_id] = replace(
                             current, playlist_ids=(*current.playlist_ids, playlist_id)
                         )
             except Exception as exc:
                 self.failures[playlist_id] = exc
+
+        limit = self.max_results
+        for index, video_id in enumerate(order):
+            if limit is not None and index >= limit:
+                return
+            yield seen[video_id]
 
 
 class AsyncSearchResults(AsyncExportable):

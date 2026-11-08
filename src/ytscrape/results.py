@@ -66,7 +66,14 @@ class PlaylistResults:
 
 
 class PlaylistCollection(Exportable):
-    """Lazy deduplicating view over several playlists."""
+    """Deduplicated view over several playlists with complete associations.
+
+    Collection iteration buffers one lightweight model per unique video until
+    every playlist has been visited. This is intentionally eager across the
+    supplied playlists: yielding earlier would make ``playlist_ids`` incomplete
+    when a duplicate appears in a later playlist. The buffer is bounded by the
+    number of unique videos, not the number of playlist entries.
+    """
 
     def __init__(
         self, youtube: Any, playlists: Any, *, max_results: int | None = None
@@ -82,28 +89,30 @@ class PlaylistCollection(Exportable):
         from dataclasses import replace
 
         seen: dict[str, Any] = {}
-        emitted = 0
+        order: list[str] = []
         for playlist_id in self.playlist_ids:
             try:
-                for entry in self._youtube.playlist(
-                    playlist_id, max_results=self.max_results
-                ):
+                for entry in self._youtube.playlist(playlist_id):
                     if not entry.video_id:
                         continue
                     current = seen.get(entry.video_id)
                     if current is None:
-                        current = replace(entry, playlist_ids=(playlist_id,))
-                        seen[entry.video_id] = current
-                        yield current
-                        emitted += 1
-                        if self.max_results is not None and emitted >= self.max_results:
-                            return
+                        seen[entry.video_id] = replace(
+                            entry, playlist_ids=(playlist_id,)
+                        )
+                        order.append(entry.video_id)
                     elif playlist_id not in current.playlist_ids:
                         seen[entry.video_id] = replace(
                             current, playlist_ids=(*current.playlist_ids, playlist_id)
                         )
             except Exception as exc:
                 self.failures[playlist_id] = exc
+
+        limit = self.max_results
+        for index, video_id in enumerate(order):
+            if limit is not None and index >= limit:
+                return
+            yield seen[video_id]
 
 
 class SearchResults(Exportable):
