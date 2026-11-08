@@ -1,0 +1,133 @@
+import { neon } from "@neondatabase/serverless"
+
+export type DashboardData = {
+  connected: boolean
+  connectionError?: string
+  playlists: Array<{
+    id: string
+    title: string | null
+    url: string
+    youtubePlaylistId: string
+    videoCount: number
+    lastCollected: string | null
+    isActive: boolean
+  }>
+  stats: {
+    activePlaylists: number
+    trackedVideos: number
+    totalViews: number
+    milestones: number
+  }
+  runs: Array<{
+    id: string
+    startedAt: string
+    status: string
+    playlistsSucceeded: number
+    playlistsFailed: number
+    videosDiscovered: number
+    statisticsCollected: number
+  }>
+}
+
+const emptyData: DashboardData = {
+  connected: false,
+  playlists: [],
+  stats: { activePlaylists: 0, trackedVideos: 0, totalViews: 0, milestones: 0 },
+  runs: [],
+}
+
+export async function getDashboardData(): Promise<DashboardData> {
+  if (!process.env.DATABASE_URL) {
+    return { ...emptyData, connectionError: "DATABASE_URL is not configured." }
+  }
+
+  try {
+    const sql = neon(process.env.DATABASE_URL)
+    const [playlists, stats, runs] = await Promise.all([
+      sql`
+        select
+          p.id::text,
+          p.title,
+          p.url,
+          p.youtube_playlist_id,
+          p.is_active,
+          p.last_successful_collection_at,
+          count(pv.video_id)::int as video_count
+        from playlists p
+        left join playlist_videos pv
+          on pv.playlist_id = p.id and pv.is_currently_member = true
+        group by p.id
+        order by p.is_active desc, p.updated_at desc
+      `,
+      sql`
+        with latest as (
+          select distinct on (video_id) video_id, view_count
+          from video_statistics_snapshots
+          order by video_id, observed_at desc
+        )
+        select
+          (select count(*)::int from playlists where is_active = true) as active_playlists,
+          (select count(*)::int from videos) as tracked_videos,
+          coalesce((select sum(view_count)::bigint from latest), 0) as total_views,
+          (select count(*)::int from video_milestones where status = 'reached') as milestones
+      `,
+      sql`
+        select
+          id::text,
+          started_at,
+          status,
+          playlists_succeeded,
+          playlists_failed,
+          videos_discovered,
+          statistics_collected
+        from collection_runs
+        order by started_at desc
+        limit 5
+      `,
+    ])
+
+    return {
+      connected: true,
+      playlists: playlists.map((row) => ({
+        id: String(row.id),
+        title: row.title ? String(row.title) : null,
+        url: String(row.url),
+        youtubePlaylistId: String(row.youtube_playlist_id),
+        videoCount: Number(row.video_count ?? 0),
+        lastCollected: row.last_successful_collection_at
+          ? new Date(String(row.last_successful_collection_at)).toISOString()
+          : null,
+        isActive: Boolean(row.is_active),
+      })),
+      stats: {
+        activePlaylists: Number(stats[0]?.active_playlists ?? 0),
+        trackedVideos: Number(stats[0]?.tracked_videos ?? 0),
+        totalViews: Number(stats[0]?.total_views ?? 0),
+        milestones: Number(stats[0]?.milestones ?? 0),
+      },
+      runs: runs.map((row) => ({
+        id: String(row.id),
+        startedAt: new Date(String(row.started_at)).toISOString(),
+        status: String(row.status),
+        playlistsSucceeded: Number(row.playlists_succeeded ?? 0),
+        playlistsFailed: Number(row.playlists_failed ?? 0),
+        videosDiscovered: Number(row.videos_discovered ?? 0),
+        statisticsCollected: Number(row.statistics_collected ?? 0),
+      })),
+    }
+  } catch (error) {
+    return {
+      ...emptyData,
+      connectionError: error instanceof Error ? error.message : "Unable to reach Neon.",
+    }
+  }
+}
+
+export function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)
+}
+
+export function formatDate(value: string | null) {
+  if (!value) return "Never collected"
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value))
+}

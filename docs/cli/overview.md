@@ -219,3 +219,35 @@ ytscrape transcript dQw4w9WgXcQ --lang en --preserve-formatting
 !!! tip
 
     Run `--list` first to discover which language codes are available for a video before fetching. Auto-generated tracks are clearly identified in the listing so you can choose between a human-edited caption and a machine-generated one.
+
+***
+
+## `collect`
+
+Run one manual collection for every active playlist registered in the analytics database. The command loads playlists from PostgreSQL, uses the async collection service, reconciles playlist membership, saves view-count snapshots, and evaluates active view milestones.
+
+```bash
+DATABASE_URL='postgresql://…' ytscrape collect [--max N]
+```
+
+`DATABASE_URL` is required and must point to a database containing `migrations/001_analytics_schema.sql`. `--max` optionally limits the number of playlist entries fetched per playlist; omitting it collects all available entries. The command does not apply migrations automatically.
+
+The terminal summary includes the run ID, playlists processed, successful and failed playlists, unique videos, new videos, statistics snapshots, milestones, status, and any playlist/video errors. Exit status is `0` only for a fully successful run; failed or partial runs exit nonzero.
+
+Example output:
+
+```text
+Collection summary
+  Playlists processed:         3
+  Successful playlists:        2
+  Failed playlists:            1
+  Unique videos collected:     42
+  New videos discovered:       7
+  Statistics snapshots saved:  41
+  Milestones recorded:         2
+  Status:                      partial
+  Errors:
+    - https://www.youtube.com/playlist?list=PL…: playlist unavailable
+```
+
+YouTube currently exposes reliable numeric view counts through the player response. Like and comment totals remain `NULL` when unavailable; comments themselves are collected through the separate comments API.

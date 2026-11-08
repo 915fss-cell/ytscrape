@@ -15,9 +15,101 @@ from . import parsing
 from .export import Exportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["ChannelVideos", "CommentThread", "SearchResults"]
+__all__ = [
+    "ChannelVideos",
+    "CommentThread",
+    "PlaylistCollection",
+    "PlaylistResults",
+    "SearchResults",
+]
 
 SearchItem = Video | Channel | Playlist
+
+
+class PlaylistResults:
+    """Lazy playlist entries; constructed by playlist helpers."""
+
+    def __init__(
+        self,
+        client: Any,
+        first_page: dict[str, Any],
+        *,
+        max_results: int | None = None,
+        youtube: Any = None,
+    ) -> None:
+        self._client = client
+        self._youtube = youtube
+        self._continuation = parsing.find_continuation(first_page)
+        self._max_results = max_results
+        self._buffer = parsing.parse_playlist_videos(first_page)
+
+    def __iter__(self):
+        yielded = 0
+        seen_tokens: set[str] = set()
+        index = 0
+        while True:
+            if self._max_results is not None and yielded >= self._max_results:
+                return
+            if index < len(self._buffer):
+                item = self._buffer[index]
+                index += 1
+                yielded += 1
+                yield item
+                continue
+            token = self._continuation
+            if not token or token in seen_tokens:
+                return
+            seen_tokens.add(token)
+            page = self._client.browse("", continuation=token)
+            self._continuation = parsing.find_continuation(page)
+            self._buffer.extend(parsing.parse_playlist_videos(page))
+
+
+class PlaylistCollection(Exportable):
+    """Deduplicated view over several playlists with complete associations.
+
+    Collection iteration buffers one lightweight model per unique video until
+    every playlist has been visited. This is intentionally eager across the
+    supplied playlists: yielding earlier would make ``playlist_ids`` incomplete
+    when a duplicate appears in a later playlist. The buffer is bounded by the
+    number of unique videos, not the number of playlist entries.
+    """
+
+    def __init__(
+        self, youtube: Any, playlists: Any, *, max_results: int | None = None
+    ) -> None:
+        self._youtube = youtube
+        self.playlist_ids = tuple(
+            dict.fromkeys(youtube._normalize_playlist_id(p) for p in playlists)
+        )
+        self.max_results = max_results
+        self.failures: dict[str, Exception] = {}
+
+    def __iter__(self):
+        from dataclasses import replace
+
+        seen: dict[str, Any] = {}
+        order: list[str] = []
+        for playlist_id in self.playlist_ids:
+            try:
+                for entry in self._youtube.playlist(playlist_id):
+                    key = entry.video_id or f"{playlist_id}:{entry.index}:{entry.title}"
+                    current = seen.get(key)
+                    if current is None:
+                        seen[key] = replace(entry, playlist_ids=(playlist_id,))
+                        order.append(entry.video_id)
+                    elif playlist_id not in current.playlist_ids:
+                        seen[key] = replace(
+                            current, playlist_ids=(*current.playlist_ids, playlist_id)
+                        )
+            except Exception as exc:
+                self.failures[playlist_id] = exc
+
+        limit = self.max_results
+        for index, video_id in enumerate(order):
+            if limit is not None and index >= limit:
+                return
+            yield seen[video_id]
 
 
 class SearchResults(Exportable):

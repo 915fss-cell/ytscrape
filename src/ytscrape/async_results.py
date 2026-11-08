@@ -13,9 +13,101 @@ from . import parsing
 from .export import AsyncExportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["AsyncChannelVideos", "AsyncCommentThread", "AsyncSearchResults"]
+__all__ = [
+    "AsyncChannelVideos",
+    "AsyncCommentThread",
+    "AsyncPlaylistCollection",
+    "AsyncPlaylistResults",
+    "AsyncSearchResults",
+]
 
 SearchItem = Video | Channel | Playlist
+
+
+class AsyncPlaylistResults(AsyncExportable):
+    """Async iterable playlist entries."""
+
+    def __init__(
+        self,
+        client: Any,
+        first_page: dict[str, Any],
+        *,
+        max_results: int | None = None,
+        youtube: Any = None,
+    ) -> None:
+        self._client = client
+        self._buffer = parsing.parse_playlist_videos(first_page)
+        self._continuation = parsing.find_continuation(first_page)
+        self._max_results = max_results
+
+    def __aiter__(self):
+        async def iterate():
+            yielded = 0
+            index = 0
+            seen_tokens: set[str] = set()
+            while True:
+                if self._max_results is not None and yielded >= self._max_results:
+                    return
+                if index < len(self._buffer):
+                    item = self._buffer[index]
+                    index += 1
+                    yielded += 1
+                    yield item
+                    continue
+                token = self._continuation
+                if not token or token in seen_tokens:
+                    return
+                seen_tokens.add(token)
+                page = await self._client.browse("", continuation=token)
+                self._continuation = parsing.find_continuation(page)
+                self._buffer.extend(parsing.parse_playlist_videos(page))
+
+        return iterate()
+
+
+class AsyncPlaylistCollection:
+    """Async deduplicated view with complete playlist associations.
+
+    Results are buffered until all supplied playlists have been visited so a
+    video yielded once always contains every playlist it was found in.
+    """
+
+    def __init__(
+        self, youtube: Any, playlists: Any, *, max_results: int | None = None
+    ) -> None:
+        self._youtube = youtube
+        self.playlist_ids = tuple(
+            dict.fromkeys(youtube._normalize_playlist_id(p) for p in playlists)
+        )
+        self.max_results = max_results
+        self.failures: dict[str, Exception] = {}
+
+    async def __aiter__(self):
+        from dataclasses import replace
+
+        seen: dict[str, Any] = {}
+        order: list[str] = []
+        for playlist_id in self.playlist_ids:
+            try:
+                entries = await self._youtube.playlist(playlist_id)
+                async for entry in entries:
+                    key = entry.video_id or f"{playlist_id}:{entry.index}:{entry.title}"
+                    current = seen.get(key)
+                    if current is None:
+                        seen[key] = replace(entry, playlist_ids=(playlist_id,))
+                        order.append(key)
+                    elif playlist_id not in current.playlist_ids:
+                        seen[key] = replace(
+                            current, playlist_ids=(*current.playlist_ids, playlist_id)
+                        )
+            except Exception as exc:
+                self.failures[playlist_id] = exc
+
+        limit = self.max_results
+        for index, video_id in enumerate(order):
+            if limit is not None and index >= limit:
+                return
+            yield seen[video_id]
 
 
 class AsyncSearchResults(AsyncExportable):

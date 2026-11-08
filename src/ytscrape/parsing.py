@@ -11,7 +11,16 @@ from collections.abc import Iterator
 from dataclasses import replace
 from typing import Any
 
-from .models import Channel, Comment, Playlist, Video
+from .models import (
+    Channel,
+    Comment,
+    Playlist,
+    PlaylistDetails,
+    PlaylistVideo,
+    Video,
+    _text,
+    parse_count,
+)
 
 __all__ = [
     "CHANNEL_VIDEOS_PARAMS",
@@ -24,6 +33,7 @@ __all__ = [
     "parse_channel_videos",
     "parse_comments_page",
     "parse_item",
+    "parse_playlist_videos",
 ]
 
 # Maps a renderer key to the model responsible for parsing it.
@@ -31,6 +41,8 @@ _RENDERER_FACTORIES = {
     "videoRenderer": Video.from_renderer,
     "channelRenderer": Channel.from_renderer,
     "playlistRenderer": Playlist.from_renderer,
+    "playlistVideoRenderer": PlaylistVideo.from_renderer,
+    "lockupViewModel": PlaylistVideo.from_renderer,
 }
 
 
@@ -86,11 +98,55 @@ def iter_renderers(
     yield from _walk(response)
 
 
+def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
+    """Parse playlist video entries from browse or continuation responses."""
+    videos: list[PlaylistVideo] = []
+    seen: set[str] = set()
+    for key, renderer in iter_renderers(response):
+        if key not in {"playlistVideoRenderer", "lockupViewModel"}:
+            continue
+        item = PlaylistVideo.from_renderer(renderer)
+        dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
+        if dedupe_key not in seen:
+            seen.add(dedupe_key)
+            videos.append(item)
+    return videos
+
+
+def parse_playlist_details(
+    response: dict[str, Any], playlist_id: str
+) -> PlaylistDetails:
+    """Extract lightweight metadata from a playlist browse response."""
+    header = response.get("header", {}) if isinstance(response, dict) else {}
+    header_renderer = header.get("playlistHeaderRenderer", {})
+    if isinstance(header_renderer, dict):
+        title = _text(header_renderer.get("title"))
+        owner = _text(header_renderer.get("ownerText"))
+        count_text = _text(header_renderer.get("numVideosText"))
+        if title or owner or count_text:
+            return PlaylistDetails(
+                playlist_id=playlist_id,
+                title=title,
+                owner_name=owner,
+                video_count=parse_count(count_text),
+            )
+    for key, renderer in iter_renderers(response):
+        if key in {"playlistHeaderRenderer", "playlistSidebarPrimaryInfoRenderer"}:
+            return PlaylistDetails(
+                playlist_id=playlist_id,
+                title=_text(renderer.get("title")),
+            )
+    return PlaylistDetails(playlist_id=playlist_id)
+
+
 def parse_item(renderer_key: str, renderer: dict[str, Any]):
     """Build the appropriate model for ``renderer_key``.
 
     Returns ``None`` for unknown types so callers can skip them.
     """
+    if renderer_key == "lockupViewModel":
+        video_renderer = _lockup_to_renderer(renderer)
+        return Video.from_renderer(video_renderer) if video_renderer else None
     factory = _RENDERER_FACTORIES.get(renderer_key)
     if factory is None:
         return None
@@ -111,7 +167,10 @@ def _lockup_to_renderer(lockup: dict[str, Any]) -> dict[str, Any] | None:
         "LOCKUP_CONTENT_TYPE_VIDEO",
     ):
         return None
-    meta = (lockup.get("metadata") or {}).get("lockupMetadataViewModel") or {}
+    metadata = lockup.get("metadata") or {}
+    meta = metadata.get("lockupMetadataViewModel") or {}
+    if not meta and "feedAdMetadataViewModel" in metadata:
+        return None
     title = (meta.get("title") or {}).get("content") or ""
     parts: list[str] = []
     rows = ((meta.get("metadata") or {}).get("contentMetadataViewModel") or {}).get(
