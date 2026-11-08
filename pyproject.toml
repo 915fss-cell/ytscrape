@@ -129,6 +129,7 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = [
     "network: tests that hit the real YouTube (deselect with -m 'not network')",
+    "integration: tests that require an isolated PostgreSQL test database",
 ]
 
 [tool.coverage.run]

@@ -10,6 +10,8 @@ from .persistence import AnalyticsRepository
 
 
 class AsyncPlaylistSource(Protocol):
+    def _normalize_playlist_id(self, value: str) -> str: ...
+
     async def get_playlist(self, playlist: str) -> Any: ...
 
     def playlist_collection(
@@ -64,6 +66,7 @@ class AsyncCollectionService:
         result = CollectionResult(run_id, len(playlist_values))
 
         for playlist in playlist_values:
+            playlist_id = self.source._normalize_playlist_id(playlist)
             try:
                 details = await self.source.get_playlist(playlist)
                 entries = self.source.playlist_collection(
@@ -80,6 +83,9 @@ class AsyncCollectionService:
                 result.videos_discovered += count
             except Exception as exc:
                 result.playlists_failed += 1
+                await self.repository.record_playlist_failure(
+                    run_id, playlist_id, playlist, exc
+                )
                 result.errors.append(
                     {
                         "playlist": playlist,

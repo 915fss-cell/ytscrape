@@ -4,7 +4,8 @@ import pytest
 
 from ytscrape.collection import AsyncCollectionService
 from ytscrape.database import Database
-from ytscrape.persistence import _duration_seconds
+from ytscrape.models import PlaylistVideo, VideoDetails
+from ytscrape.persistence import _duration_seconds, _video_values
 
 
 @pytest.mark.parametrize(
@@ -13,6 +14,13 @@ from ytscrape.persistence import _duration_seconds
 )
 def test_duration_seconds(value: str | None, expected: int | None) -> None:
     assert _duration_seconds(value) == expected
+
+
+def test_video_values_keep_missing_metrics_nullable() -> None:
+    video = PlaylistVideo("video-id", "Video")
+    values = _video_values(video, VideoDetails("video-id", views=None, is_private=True))
+    assert values[0] == "video-id"
+    assert values[8] is True
 
 
 @pytest.mark.anyio
@@ -26,6 +34,12 @@ class FakeRepository:
     def __init__(self) -> None:
         self.finished: dict[str, object] | None = None
         self.saved: list[str] = []
+        self.failed: list[tuple[str, str]] = []
+
+    async def record_playlist_failure(
+        self, run_id: str, playlist_id: str, url: str, error: BaseException
+    ) -> None:
+        self.failed.append((playlist_id, str(error)))
 
     async def start_run(self, count: int) -> str:
         assert count == 2
@@ -43,6 +57,9 @@ class FakeRepository:
 
 
 class FakeSource:
+    def _normalize_playlist_id(self, value: str) -> str:
+        return value
+
     async def get_playlist(self, playlist: str) -> object:
         if playlist == "bad":
             raise ValueError("unavailable")

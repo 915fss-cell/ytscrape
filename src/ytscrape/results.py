@@ -96,9 +96,7 @@ class PlaylistCollection(Exportable):
                     key = entry.video_id or f"{playlist_id}:{entry.index}:{entry.title}"
                     current = seen.get(key)
                     if current is None:
-                        seen[key] = replace(
-                            entry, playlist_ids=(playlist_id,)
-                        )
+                        seen[key] = replace(entry, playlist_ids=(playlist_id,))
                         order.append(entry.video_id)
                     elif playlist_id not in current.playlist_ids:
                         seen[key] = replace(

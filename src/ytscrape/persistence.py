@@ -169,20 +169,19 @@ class AnalyticsRepository:
                     playlist_id,
                     video_id,
                 )
-            if seen_ids:
-                await conn.execute(
-                    """
-                        update playlist_videos pv
-                        set is_currently_member = false, removed_at = now()
-                        from videos v
-                        where pv.playlist_id = $1
-                          and pv.video_id = v.id
-                          and pv.is_currently_member = true
-                          and v.youtube_video_id <> all($2::text[])
-                        """,
-                    playlist_id,
-                    list(seen_ids),
-                )
+            await conn.execute(
+                """
+                    update playlist_videos pv
+                    set is_currently_member = false, removed_at = now()
+                    from videos v
+                    where pv.playlist_id = $1
+                      and pv.video_id = v.id
+                      and pv.is_currently_member = true
+                      and v.youtube_video_id <> all($2::text[])
+                    """,
+                playlist_id,
+                list(seen_ids),
+            )
             await conn.execute(
                 """
                     update playlists
@@ -204,6 +203,51 @@ class AnalyticsRepository:
                 len(seen_ids),
             )
         return len(seen_ids)
+
+    async def record_playlist_failure(
+        self,
+        run_id: str,
+        playlist_id: str,
+        url: str,
+        error: BaseException,
+    ) -> None:
+        """Persist a failed playlist attempt without touching memberships."""
+        message = str(error) or type(error).__name__
+        async with self.pool.acquire() as conn, conn.transaction():
+            playlist_row = await conn.fetchrow(
+                """
+                insert into playlists (
+                    youtube_playlist_id, url, last_error_at, last_error
+                )
+                values ($1, $2, now(), $3)
+                on conflict (youtube_playlist_id) do update set
+                    url = excluded.url,
+                    last_error_at = now(),
+                    last_error = excluded.last_error,
+                    updated_at = now()
+                returning id::text
+                """,
+                playlist_id,
+                url,
+                message,
+            )
+            if playlist_row is None:
+                raise RuntimeError("Could not register failed playlist.")
+            await conn.execute(
+                """
+                insert into collection_run_playlists (
+                    collection_run_id, playlist_id, status, completed_at, error_details
+                )
+                values ($1, $2, 'failed', now(), $3::jsonb)
+                on conflict (collection_run_id, playlist_id) do update set
+                    status = 'failed',
+                    completed_at = now(),
+                    error_details = excluded.error_details
+                """,
+                run_id,
+                playlist_row["id"],
+                json.dumps({"error_type": type(error).__name__, "message": message}),
+            )
 
     async def record_statistics(
         self,
@@ -278,6 +322,74 @@ class AnalyticsRepository:
             statistics_collected,
             len(errors or []),
             json.dumps(errors) if errors else None,
+        )
+
+    async def upsert_milestone_definition(
+        self, name: str, metric: str, threshold: int
+    ) -> str:
+        """Create or update a named threshold definition and return its ID."""
+        if metric not in {"view_count", "like_count", "comment_count"}:
+            raise ValueError("unsupported milestone metric")
+        if threshold <= 0:
+            raise ValueError("threshold must be positive")
+        return str(
+            await self.pool.fetchval(
+                """
+                insert into milestone_definitions (name, metric, threshold)
+                values ($1, $2, $3)
+                on conflict (name) do update set
+                    metric = excluded.metric,
+                    threshold = excluded.threshold,
+                    is_active = true
+                returning id::text
+                """,
+                name,
+                metric,
+                threshold,
+            )
+        )
+
+    async def record_milestone(
+        self,
+        video_id: str,
+        milestone_definition_id: str,
+        snapshot_id: str,
+        reached_value: int,
+    ) -> str:
+        """Record a reached threshold idempotently for a video."""
+        return str(
+            await self.pool.fetchval(
+                """
+                insert into video_milestones
+                    (video_id, milestone_definition_id, snapshot_id,
+                     reached_at, reached_value, status)
+                values ($1, $2, $3, now(), $4, 'reached')
+                on conflict (video_id, milestone_definition_id) do update set
+                    snapshot_id = excluded.snapshot_id,
+                    reached_at = excluded.reached_at,
+                    reached_value = excluded.reached_value,
+                    status = 'reached'
+                returning id::text
+                """,
+                video_id,
+                milestone_definition_id,
+                snapshot_id,
+                reached_value,
+            )
+        )
+
+    async def retract_milestone(
+        self, video_id: str, milestone_definition_id: str
+    ) -> None:
+        """Mark a previously reached threshold as retracted."""
+        await self.pool.execute(
+            """
+            update video_milestones
+            set status = 'retracted'
+            where video_id = $1 and milestone_definition_id = $2
+            """,
+            video_id,
+            milestone_definition_id,
         )
 
 
