@@ -1158,12 +1158,20 @@ class PlaylistVideo(Exportable):
             )
             if channel_id:
                 break
+        video_id = str(renderer.get("videoId") or "")
+        lowered_title = title.lower()
+        is_unavailable = not video_id or any(
+            marker in lowered_title
+            for marker in ("deleted video", "private video", "unavailable")
+        )
         return cls(
-            video_id=str(renderer.get("videoId") or ""),
+            video_id=video_id,
             title=title,
             index=index,
             channel_id=channel_id,
             channel_title=channel_title,
             duration=_text(renderer.get("lengthText")),
             thumbnail=thumbnail,
+            is_unavailable=is_unavailable,
+            unavailable_reason=title if is_unavailable else None,
         )

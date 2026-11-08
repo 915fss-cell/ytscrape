@@ -150,7 +150,15 @@ class TestPlaylistCollection:
 
 
 class TestAsyncPlaylistCollection:
-    def test_duplicate_associations_and_failure(self) -> None:
+    def test_async_result_pagination(self) -> None:
+        async def body() -> None:
+            client = AsyncPageClient([_page([_entry("v2")])])
+            results = AsyncPlaylistResults(client, _page([_entry("v1")], "T1"))
+            assert [item.video_id async for item in results] == ["v1", "v2"]
+
+        asyncio.run(body())
+
+    def test_pagination_and_duplicate_associations_and_failure(self) -> None:
         async def body() -> None:
             def video(value: str) -> PlaylistVideo:
                 return PlaylistVideo(video_id=value, title=value)
@@ -160,7 +168,7 @@ class TestAsyncPlaylistCollection:
                 def _normalize_playlist_id(value: str) -> str:
                     return value
 
-                async def playlist(self, playlist_id: str, **_: Any) -> Any:
+                def playlist(self, playlist_id: str, **_: Any) -> Any:
                     if playlist_id == "PL3":
                         raise RuntimeError("blocked")
                     items = (

@@ -105,8 +105,9 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
         if key != "playlistVideoRenderer":
             continue
         item = PlaylistVideo.from_renderer(renderer)
-        if item.video_id and item.video_id not in seen:
-            seen.add(item.video_id)
+        dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
+        if dedupe_key not in seen:
+            seen.add(dedupe_key)
             videos.append(item)
     return videos
 

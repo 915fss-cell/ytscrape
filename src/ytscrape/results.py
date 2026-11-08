@@ -93,16 +93,15 @@ class PlaylistCollection(Exportable):
         for playlist_id in self.playlist_ids:
             try:
                 for entry in self._youtube.playlist(playlist_id):
-                    if not entry.video_id:
-                        continue
-                    current = seen.get(entry.video_id)
+                    key = entry.video_id or f"{playlist_id}:{entry.index}:{entry.title}"
+                    current = seen.get(key)
                     if current is None:
-                        seen[entry.video_id] = replace(
+                        seen[key] = replace(
                             entry, playlist_ids=(playlist_id,)
                         )
                         order.append(entry.video_id)
                     elif playlist_id not in current.playlist_ids:
-                        seen[entry.video_id] = replace(
+                        seen[key] = replace(
                             current, playlist_ids=(*current.playlist_ids, playlist_id)
                         )
             except Exception as exc:
