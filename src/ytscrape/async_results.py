@@ -66,7 +66,7 @@ class AsyncPlaylistCollection:
         emitted = 0
         for playlist_id in self.playlist_ids:
             try:
-                entries = await self._youtube.playlist(playlist_id, max_results=None)
+                entries = await self._youtube.playlist(playlist_id, max_results=self.max_results)
                 async for entry in entries:
                     if not entry.video_id:
                         continue

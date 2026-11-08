@@ -67,7 +67,7 @@ class PlaylistCollection(Exportable):
         emitted = 0
         for playlist_id in self.playlist_ids:
             try:
-                for entry in self._youtube.playlist(playlist_id):
+                for entry in self._youtube.playlist(playlist_id, max_results=self.max_results):
                     if not entry.video_id:
                         continue
                     current = seen.get(entry.video_id)

@@ -20,7 +20,7 @@ from .context import ContextCache
 from .exceptions import ParseError
 from .filters import CommentSort, SearchFilter
 from .locale import Country, Language, Locale
-from .models import ChannelDetails, VideoDetails, _about_continuation_token
+from .models import ChannelDetails, PlaylistDetails, VideoDetails, _about_continuation_token
 from .transcripts import (
     Transcript,
     TranscriptList,
@@ -203,6 +203,11 @@ class AsyncYouTube:
         if len(values) != 1 or not re.fullmatch(r"PL[\w-]+", values[0]):
             raise ParseError(f"Could not extract a playlist id from {value!r}.")
         return values[0]
+
+    async def get_playlist(self, playlist: str) -> PlaylistDetails:
+        playlist_id = self._normalize_playlist_id(playlist)
+        page = await self._client.browse(playlist_id)
+        return parsing.parse_playlist_details(page, playlist_id)
 
     async def playlist(self, playlist: str, *, max_results: int | None = None) -> AsyncPlaylistResults:
         playlist_id = self._normalize_playlist_id(playlist)

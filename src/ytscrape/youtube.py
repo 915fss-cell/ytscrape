@@ -12,7 +12,7 @@ from .context import ContextCache
 from .exceptions import ParseError
 from .filters import CommentSort, SearchFilter
 from .locale import Country, Language, Locale
-from .models import ChannelDetails, VideoDetails, _about_continuation_token
+from .models import ChannelDetails, PlaylistDetails, VideoDetails, _about_continuation_token
 from .results import ChannelVideos, CommentThread, PlaylistCollection, PlaylistResults, SearchResults
 from .transcripts import (
     Transcript,
@@ -248,6 +248,10 @@ class YouTube:
         if len(values) != 1 or not re.fullmatch(r"PL[\w-]+", values[0]):
             raise ParseError(f"Could not extract a playlist id from {value!r}.")
         return values[0]
+
+    def get_playlist(self, playlist: str) -> PlaylistDetails:
+        playlist_id = self._normalize_playlist_id(playlist)
+        return parsing.parse_playlist_details(self._client.browse(playlist_id), playlist_id)
 
     def playlist(self, playlist: str, *, max_results: int | None = None) -> PlaylistResults:
         playlist_id = self._normalize_playlist_id(playlist)
