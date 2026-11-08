@@ -1180,7 +1180,9 @@ class PlaylistVideo(Exportable):
             overlays = thumbnail_view.get("overlays") or []
             duration = None
             for overlay in overlays:
-                badge = (overlay.get("thumbnailBottomOverlayViewModel") or {}).get("badges") or []
+                badge = (
+                    overlay.get("thumbnailBottomOverlayViewModel") or {}
+                ).get("badges") or []
                 if badge:
                     duration = badge[0].get("thumbnailBadgeViewModel", {}).get("text")
                     if duration:

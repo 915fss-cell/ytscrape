@@ -39,7 +39,9 @@ from .async_results import (
 )
 from .async_youtube import AsyncYouTube
 from .client import InnerTubeClient, RateLimiter, RetryPolicy
+from .collection import AsyncCollectionService, CollectionResult
 from .context import ContextCache, ContextExtractor, InnerTubeContext
+from .database import Database, close_pool, create_pool
 from .exceptions import (
     AgeRestricted,
     BotDetected,
@@ -71,6 +73,7 @@ from .models import (
     Video,
     VideoDetails,
 )
+from .persistence import AnalyticsRepository
 from .results import (
     ChannelVideos,
     CommentThread,
@@ -87,7 +90,9 @@ __version__ = "2.2.0"
 
 __all__ = [
     "AgeRestricted",
+    "AnalyticsRepository",
     "AsyncChannelVideos",
+    "AsyncCollectionService",
     "AsyncCommentThread",
     "AsyncInnerTubeClient",
     "AsyncPlaylistCollection",
@@ -99,6 +104,7 @@ __all__ = [
     "Channel",
     "ChannelDetails",
     "ChannelVideos",
+    "CollectionResult",
     "Comment",
     "CommentSort",
     "CommentThread",
@@ -107,6 +113,7 @@ __all__ = [
     "ContextExtractionError",
     "ContextExtractor",
     "Country",
+    "Database",
     "InnerTubeClient",
     "InnerTubeContext",
     "Language",
@@ -139,6 +146,8 @@ __all__ = [
     "YtScrapeError",
     "YtScraperError",
     "__version__",
+    "close_pool",
+    "create_pool",
     "dump_csv",
     "dump_json",
     "dumps_csv",
