@@ -263,14 +263,14 @@ class YouTube:
     def get_playlist(self, playlist: str) -> PlaylistDetails:
         playlist_id = self._normalize_playlist_id(playlist)
         return parsing.parse_playlist_details(
-            self._client.browse(playlist_id), playlist_id
+            self._client.browse(f"VL{playlist_id}"), playlist_id
         )
 
     def playlist(
         self, playlist: str, *, max_results: int | None = None
     ) -> PlaylistResults:
         playlist_id = self._normalize_playlist_id(playlist)
-        first_page = self._client.browse(playlist_id)
+        first_page = self._client.browse(f"VL{playlist_id}")
         return PlaylistResults(
             self._client, first_page, max_results=max_results, youtube=self
         )

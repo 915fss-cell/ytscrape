@@ -42,6 +42,7 @@ _RENDERER_FACTORIES = {
     "channelRenderer": Channel.from_renderer,
     "playlistRenderer": Playlist.from_renderer,
     "playlistVideoRenderer": PlaylistVideo.from_renderer,
+    "lockupViewModel": PlaylistVideo.from_renderer,
 }
 
 
@@ -102,7 +103,7 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
     videos: list[PlaylistVideo] = []
     seen: set[str] = set()
     for key, renderer in iter_renderers(response):
-        if key != "playlistVideoRenderer":
+        if key not in {"playlistVideoRenderer", "lockupViewModel"}:
             continue
         item = PlaylistVideo.from_renderer(renderer)
         dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"

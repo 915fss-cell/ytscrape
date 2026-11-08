@@ -89,7 +89,7 @@ class AsyncPlaylistCollection:
         order: list[str] = []
         for playlist_id in self.playlist_ids:
             try:
-                entries = self._youtube.playlist(playlist_id)
+                entries = await self._youtube.playlist(playlist_id)
                 async for entry in entries:
                     key = entry.video_id or f"{playlist_id}:{entry.index}:{entry.title}"
                     current = seen.get(key)

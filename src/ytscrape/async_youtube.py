@@ -212,14 +212,14 @@ class AsyncYouTube:
 
     async def get_playlist(self, playlist: str) -> PlaylistDetails:
         playlist_id = self._normalize_playlist_id(playlist)
-        page = await self._client.browse(playlist_id)
+        page = await self._client.browse(f"VL{playlist_id}")
         return parsing.parse_playlist_details(page, playlist_id)
 
     async def playlist(
         self, playlist: str, *, max_results: int | None = None
     ) -> AsyncPlaylistResults:
         playlist_id = self._normalize_playlist_id(playlist)
-        first_page = await self._client.browse(playlist_id)
+        first_page = await self._client.browse(f"VL{playlist_id}")
         return AsyncPlaylistResults(
             self._client, first_page, max_results=max_results, youtube=self
         )

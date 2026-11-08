@@ -1142,6 +1142,58 @@ class PlaylistVideo(Exportable):
 
     @classmethod
     def from_renderer(cls, renderer: dict[str, Any]) -> PlaylistVideo:
+        lockup = renderer.get("lockupViewModel")
+        if not isinstance(lockup, dict) and "contentImage" in renderer:
+            lockup = renderer
+        if isinstance(lockup, dict):
+            renderer = lockup
+            content_image = renderer.get("contentImage") or {}
+            thumbnail_view = content_image.get("thumbnailViewModel") or {}
+            image = thumbnail_view.get("image") or {}
+            sources = image.get("sources") or []
+            metadata = renderer.get("metadata") or {}
+            lockup_metadata = metadata.get("lockupMetadataViewModel") or {}
+            title_node = lockup_metadata.get("title") or renderer.get("title")
+            title = (
+                title_node.get("content")
+                if isinstance(title_node, dict)
+                else _text(title_node)
+            ) or ""
+            video_id = str(renderer.get("contentId") or "")
+
+            def find_video_id(value: Any) -> str:
+                if isinstance(value, dict):
+                    if isinstance(value.get("videoId"), str):
+                        return value["videoId"]
+                    for child in value.values():
+                        found = find_video_id(child)
+                        if found:
+                            return found
+                elif isinstance(value, list):
+                    for child in value:
+                        found = find_video_id(child)
+                        if found:
+                            return found
+                return ""
+
+            video_id = find_video_id(renderer)
+            overlays = thumbnail_view.get("overlays") or []
+            duration = None
+            for overlay in overlays:
+                badge = (overlay.get("thumbnailBottomOverlayViewModel") or {}).get("badges") or []
+                if badge:
+                    duration = badge[0].get("thumbnailBadgeViewModel", {}).get("text")
+                    if duration:
+                        break
+            return cls(
+                video_id=video_id,
+                title=title,
+                duration=duration,
+                thumbnail=sources[-1].get("url") if sources else None,
+                is_unavailable=not video_id,
+                unavailable_reason="Video is unavailable" if not video_id else None,
+            )
+
         title = _text(renderer.get("title")) or ""
         index = _int_or_none(_text(renderer.get("index")))
         thumbnails = (renderer.get("thumbnail") or {}).get("thumbnails") or []

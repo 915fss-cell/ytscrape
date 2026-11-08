@@ -53,11 +53,16 @@ class AsyncFakeYouTube:
     def _normalize_playlist_id(value: str) -> str:
         return value
 
-    async def playlist(self, playlist_id: str, **_: Any) -> AsyncPlaylistResults:
+    async def playlist(self, playlist_id: str, **_: Any):
         result = self.playlists[playlist_id]
         if isinstance(result, Exception):
             raise result
-        return AsyncPlaylistResults(AsyncPageClient([]), _page([]))
+
+        async def entries():
+            for item in result:
+                yield item
+
+        return entries()
 
 
 class SyncPageClient:
@@ -174,7 +179,7 @@ class TestAsyncPlaylistCollection:
                 def _normalize_playlist_id(value: str) -> str:
                     return value
 
-                def playlist(self, playlist_id: str, **_: Any) -> Any:
+                async def playlist(self, playlist_id: str, **_: Any) -> Any:
                     return _AsyncItems([video])
 
             values = [
@@ -198,7 +203,7 @@ class TestAsyncPlaylistCollection:
                 def _normalize_playlist_id(value: str) -> str:
                     return value
 
-                def playlist(self, playlist_id: str, **_: Any) -> Any:
+                async def playlist(self, playlist_id: str, **_: Any) -> Any:
                     if playlist_id == "PL3":
                         raise RuntimeError("blocked")
                     items = (
