@@ -11,7 +11,15 @@ from collections.abc import Iterator
 from dataclasses import replace
 from typing import Any
 
-from .models import Channel, Comment, Playlist, PlaylistDetails, PlaylistVideo, Video
+from .models import (
+    Channel,
+    Comment,
+    Playlist,
+    PlaylistDetails,
+    PlaylistVideo,
+    Video,
+    _text,
+)
 
 __all__ = [
     "CHANNEL_VIDEOS_PARAMS",
@@ -22,7 +30,6 @@ __all__ = [
     "find_reply_continuations",
     "iter_renderers",
     "parse_channel_videos",
-    "parse_playlist_videos",
     "parse_comments_page",
     "parse_item",
     "parse_playlist_videos",
@@ -103,7 +110,9 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
     return videos
 
 
-def parse_playlist_details(response: dict[str, Any], playlist_id: str) -> PlaylistDetails:
+def parse_playlist_details(
+    response: dict[str, Any], playlist_id: str
+) -> PlaylistDetails:
     """Extract lightweight metadata from a playlist browse response."""
     for key, renderer in iter_renderers(response):
         if key in {"playlistHeaderRenderer", "playlistSidebarPrimaryInfoRenderer"}:

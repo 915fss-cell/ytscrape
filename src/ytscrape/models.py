@@ -1151,7 +1151,11 @@ class PlaylistVideo(Exportable):
         channel_id = None
         runs = owner.get("runs", []) if isinstance(owner, dict) else []
         for run in runs:
-            channel_id = (run.get("navigationEndpoint") or {}).get("browseEndpoint", {}).get("browseId")
+            channel_id = (
+                (run.get("navigationEndpoint") or {})
+                .get("browseEndpoint", {})
+                .get("browseId")
+            )
             if channel_id:
                 break
         return cls(

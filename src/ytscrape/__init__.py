@@ -32,8 +32,8 @@ import logging as _logging
 from .async_client import AsyncInnerTubeClient
 from .async_results import (
     AsyncChannelVideos,
-    AsyncPlaylistCollection,
     AsyncCommentThread,
+    AsyncPlaylistCollection,
     AsyncPlaylistResults,
     AsyncSearchResults,
 )
@@ -71,7 +71,13 @@ from .models import (
     Video,
     VideoDetails,
 )
-from .results import ChannelVideos, CommentThread, PlaylistCollection, PlaylistResults, SearchResults
+from .results import (
+    ChannelVideos,
+    CommentThread,
+    PlaylistCollection,
+    PlaylistResults,
+    SearchResults,
+)
 from .transcripts import Transcript, TranscriptList, TranscriptSnippet, TranscriptTrack
 from .youtube import YouTube
 
@@ -84,9 +90,9 @@ __all__ = [
     "AsyncChannelVideos",
     "AsyncCommentThread",
     "AsyncInnerTubeClient",
-    "AsyncSearchResults",
     "AsyncPlaylistCollection",
     "AsyncPlaylistResults",
+    "AsyncSearchResults",
     "AsyncYouTube",
     "BotDetected",
     "CaptchaRequired",

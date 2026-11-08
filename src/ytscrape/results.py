@@ -15,7 +15,13 @@ from . import parsing
 from .export import Exportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["ChannelVideos", "CommentThread", "PlaylistCollection", "PlaylistResults", "SearchResults"]
+__all__ = [
+    "ChannelVideos",
+    "CommentThread",
+    "PlaylistCollection",
+    "PlaylistResults",
+    "SearchResults",
+]
 
 SearchItem = Video | Channel | Playlist
 
@@ -23,7 +29,14 @@ SearchItem = Video | Channel | Playlist
 class PlaylistResults:
     """Lazy playlist entries; constructed by playlist helpers."""
 
-    def __init__(self, client: Any, first_page: dict[str, Any], *, max_results: int | None = None, youtube: Any = None) -> None:
+    def __init__(
+        self,
+        client: Any,
+        first_page: dict[str, Any],
+        *,
+        max_results: int | None = None,
+        youtube: Any = None,
+    ) -> None:
         self._client = client
         self._youtube = youtube
         self._continuation = parsing.find_continuation(first_page)
@@ -55,19 +68,26 @@ class PlaylistResults:
 class PlaylistCollection(Exportable):
     """Lazy deduplicating view over several playlists."""
 
-    def __init__(self, youtube: Any, playlists: Any, *, max_results: int | None = None) -> None:
+    def __init__(
+        self, youtube: Any, playlists: Any, *, max_results: int | None = None
+    ) -> None:
         self._youtube = youtube
-        self.playlist_ids = tuple(dict.fromkeys(youtube._normalize_playlist_id(p) for p in playlists))
+        self.playlist_ids = tuple(
+            dict.fromkeys(youtube._normalize_playlist_id(p) for p in playlists)
+        )
         self.max_results = max_results
         self.failures: dict[str, Exception] = {}
 
     def __iter__(self):
         from dataclasses import replace
+
         seen: dict[str, Any] = {}
         emitted = 0
         for playlist_id in self.playlist_ids:
             try:
-                for entry in self._youtube.playlist(playlist_id, max_results=self.max_results):
+                for entry in self._youtube.playlist(
+                    playlist_id, max_results=self.max_results
+                ):
                     if not entry.video_id:
                         continue
                     current = seen.get(entry.video_id)
@@ -79,7 +99,9 @@ class PlaylistCollection(Exportable):
                         if self.max_results is not None and emitted >= self.max_results:
                             return
                     elif playlist_id not in current.playlist_ids:
-                        seen[entry.video_id] = replace(current, playlist_ids=(*current.playlist_ids, playlist_id))
+                        seen[entry.video_id] = replace(
+                            current, playlist_ids=(*current.playlist_ids, playlist_id)
+                        )
             except Exception as exc:
                 self.failures[playlist_id] = exc
 

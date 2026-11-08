@@ -12,8 +12,19 @@ from .context import ContextCache
 from .exceptions import ParseError
 from .filters import CommentSort, SearchFilter
 from .locale import Country, Language, Locale
-from .models import ChannelDetails, PlaylistDetails, VideoDetails, _about_continuation_token
-from .results import ChannelVideos, CommentThread, PlaylistCollection, PlaylistResults, SearchResults
+from .models import (
+    ChannelDetails,
+    PlaylistDetails,
+    VideoDetails,
+    _about_continuation_token,
+)
+from .results import (
+    ChannelVideos,
+    CommentThread,
+    PlaylistCollection,
+    PlaylistResults,
+    SearchResults,
+)
 from .transcripts import (
     Transcript,
     TranscriptList,
@@ -251,14 +262,22 @@ class YouTube:
 
     def get_playlist(self, playlist: str) -> PlaylistDetails:
         playlist_id = self._normalize_playlist_id(playlist)
-        return parsing.parse_playlist_details(self._client.browse(playlist_id), playlist_id)
+        return parsing.parse_playlist_details(
+            self._client.browse(playlist_id), playlist_id
+        )
 
-    def playlist(self, playlist: str, *, max_results: int | None = None) -> PlaylistResults:
+    def playlist(
+        self, playlist: str, *, max_results: int | None = None
+    ) -> PlaylistResults:
         playlist_id = self._normalize_playlist_id(playlist)
         first_page = self._client.browse(playlist_id)
-        return PlaylistResults(self._client, first_page, max_results=max_results, youtube=self)
+        return PlaylistResults(
+            self._client, first_page, max_results=max_results, youtube=self
+        )
 
-    def playlist_collection(self, playlists: object, *, max_results: int | None = None) -> PlaylistCollection:
+    def playlist_collection(
+        self, playlists: object, *, max_results: int | None = None
+    ) -> PlaylistCollection:
         """Return a lazy deduplicating collection for several playlists."""
         return PlaylistCollection(self, playlists, max_results=max_results)
 
