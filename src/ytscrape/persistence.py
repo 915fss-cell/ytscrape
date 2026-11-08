@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -16,11 +17,54 @@ import asyncpg
 from .models import PlaylistDetails, PlaylistVideo, VideoDetails
 
 
+@dataclass(frozen=True, slots=True)
+class RegisteredPlaylist:
+    id: str
+    youtube_playlist_id: str
+    url: str
+    title: str | None = None
+
+
 class AnalyticsRepository:
     """Store playlists, videos, memberships, snapshots, and milestones."""
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.pool = pool
+
+    async def active_playlists(self) -> list[RegisteredPlaylist]:
+        """Return registered playlists that are enabled for collection."""
+        rows = await self.pool.fetch(
+            """
+            select id::text, youtube_playlist_id, url, title
+            from playlists
+            where is_active = true
+            order by added_at, id
+            """
+        )
+        return [
+            RegisteredPlaylist(
+                id=row["id"],
+                youtube_playlist_id=row["youtube_playlist_id"],
+                url=row["url"],
+                title=row["title"],
+            )
+            for row in rows
+        ]
+
+    async def existing_video_ids(self, video_ids: Iterable[str]) -> set[str]:
+        """Return canonical video IDs already present in the database."""
+        values = list(dict.fromkeys(video_ids))
+        if not values:
+            return set()
+        rows = await self.pool.fetch(
+            """
+            select youtube_video_id
+            from videos
+            where youtube_video_id = any($1::text[])
+            """,
+            values,
+        )
+        return {row["youtube_video_id"] for row in rows}
 
     async def start_run(self, playlists_requested: int) -> str:
         """Create a running collection batch and return its UUID as a string."""
@@ -255,6 +299,8 @@ class AnalyticsRepository:
         video_id: str,
         details: VideoDetails,
         *,
+        like_count: int | None = None,
+        comment_count: int | None = None,
         raw_statistics: Mapping[str, Any] | None = None,
     ) -> str:
         """Insert one idempotent statistics snapshot for a run."""
@@ -279,14 +325,42 @@ class AnalyticsRepository:
             video_id,
             run_id,
             details.views,
-            None,
-            None,
+            like_count,
+            comment_count,
             details.is_live,
             json.dumps(dict(raw_statistics)) if raw_statistics is not None else None,
         )
         if row is None:
             raise ValueError(f"Video {video_id!r} is not registered.")
         return str(row["id"])
+
+    async def evaluate_milestones(
+        self,
+        video_id: str,
+        snapshot_id: str,
+        metrics: Mapping[str, int | None],
+    ) -> int:
+        """Record active threshold crossings represented by a snapshot."""
+        definitions = await self.pool.fetch(
+            """
+            select id::text, metric, threshold
+            from milestone_definitions
+            where is_active = true
+            """
+        )
+        reached = 0
+        for definition in definitions:
+            value = metrics.get(definition["metric"])
+            if value is None or value < definition["threshold"]:
+                continue
+            await self.record_milestone(
+                video_id,
+                definition["id"],
+                snapshot_id,
+                value,
+            )
+            reached += 1
+        return reached
 
     async def finish_run(
         self,

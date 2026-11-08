@@ -14,6 +14,8 @@ class AsyncPlaylistSource(Protocol):
 
     async def get_playlist(self, playlist: str) -> Any: ...
 
+    async def video(self, video: str) -> Any: ...
+
     def playlist_collection(
         self, playlists: object, *, max_results: int | None = None
     ) -> Any: ...
@@ -28,11 +30,14 @@ class CollectionResult:
     playlists_succeeded: int = 0
     playlists_failed: int = 0
     videos_discovered: int = 0
+    new_videos: int = 0
+    statistics_collected: int = 0
+    milestones_reached: int = 0
     errors: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def status(self) -> str:
-        if self.playlists_failed == 0:
+        if self.playlists_failed == 0 and not self.errors:
             return "succeeded"
         if self.playlists_succeeded == 0:
             return "failed"
@@ -55,6 +60,7 @@ class AsyncCollectionService:
         playlists: Iterable[str],
         *,
         max_results: int | None = None,
+        collect_statistics: bool = False,
     ) -> CollectionResult:
         """Run a resilient collection batch for playlist URLs or IDs.
 
@@ -73,6 +79,15 @@ class AsyncCollectionService:
                     [playlist], max_results=max_results
                 )
                 items = [entry async for entry in entries]
+                item_ids = [
+                    video_id
+                    for entry in items
+                    if (video_id := getattr(entry, "video_id", None))
+                ]
+                existing_lookup = getattr(self.repository, "existing_video_ids", None)
+                existing_ids = (
+                    await existing_lookup(item_ids) if existing_lookup else set()
+                )
                 count = await self.repository.save_playlist(
                     run_id,
                     details,
@@ -81,6 +96,31 @@ class AsyncCollectionService:
                 )
                 result.playlists_succeeded += 1
                 result.videos_discovered += count
+                result.new_videos += len(set(item_ids) - existing_ids)
+                if collect_statistics:
+                    for video_id in dict.fromkeys(item_ids):
+                        try:
+                            video_details = await self.source.video(video_id)
+                            snapshot_id = await self.repository.record_statistics(
+                                run_id, video_id, video_details
+                            )
+                            result.statistics_collected += 1
+                            result.milestones_reached += (
+                                await self.repository.evaluate_milestones(
+                                    video_id,
+                                    snapshot_id,
+                                    {"view_count": video_details.views},
+                                )
+                            )
+                        except Exception as exc:
+                            result.errors.append(
+                                {
+                                    "playlist": playlist,
+                                    "video": video_id,
+                                    "error_type": type(exc).__name__,
+                                    "message": str(exc),
+                                }
+                            )
             except Exception as exc:
                 result.playlists_failed += 1
                 await self.repository.record_playlist_failure(
@@ -100,6 +140,7 @@ class AsyncCollectionService:
             playlists_succeeded=result.playlists_succeeded,
             playlists_failed=result.playlists_failed,
             videos_discovered=result.videos_discovered,
+            statistics_collected=result.statistics_collected,
             errors=result.errors,
         )
         return result

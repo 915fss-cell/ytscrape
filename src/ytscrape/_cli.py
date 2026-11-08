@@ -11,6 +11,7 @@ import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING, Any, TextIO
 
+from .collection import CollectionResult
 from .export import dump_csv, dump_json, dumps_csv, dumps_json
 from .models import Channel, ChannelDetails, Comment, Playlist, Video, VideoDetails
 from .transcripts import Transcript, TranscriptList
@@ -520,6 +521,28 @@ def run_comments(yt: YouTube, args: argparse.Namespace) -> None:
         for comment in comments:
             prefix = "  \u21b3 " if comment.is_reply else ""
             print(f"{prefix}{comment.author}: {comment.text}")
+
+
+def print_collection_summary(result: CollectionResult) -> None:
+    """Print the stable human-readable summary for a collection run."""
+    print("Collection summary")
+    print(f"  Run ID:                       {result.run_id}")
+    print(f"  Playlists processed:         {result.playlists_requested}")
+    print(f"  Successful playlists:        {result.playlists_succeeded}")
+    print(f"  Failed playlists:            {result.playlists_failed}")
+    print(f"  Unique videos collected:     {result.videos_discovered}")
+    print(f"  New videos discovered:       {result.new_videos}")
+    print(f"  Statistics snapshots saved:  {result.statistics_collected}")
+    print(f"  Milestones recorded:         {result.milestones_reached}")
+    print(f"  Status:                      {result.status}")
+    if result.errors:
+        print("  Errors:")
+        for error in result.errors:
+            target = error.get("playlist", "unknown playlist")
+            video = error.get("video")
+            if video:
+                target = f"{target} ({video})"
+            print(f"    - {target}: {error.get('message', 'unknown error')}")
 
 
 def run_transcript(yt: YouTube, args: argparse.Namespace) -> None:

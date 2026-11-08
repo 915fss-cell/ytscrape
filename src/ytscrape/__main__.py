@@ -9,12 +9,18 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import asyncio
+import os
 import sys
 
-from . import YouTube, __version__
+import asyncpg
+
+from . import AsyncYouTube, YouTube, __version__
 from . import _cli as cli
+from .collection import AsyncCollectionService
 from .exceptions import YtScraperError
 from .filters import CommentSort, SearchFilter
+from .persistence import AnalyticsRepository
 
 
 def _add_shared_flags(
@@ -162,12 +168,54 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Keep basic HTML formatting tags in snippet text.",
     )
 
+    collect = sub.add_parser(
+        "collect",
+        help="Collect all active playlists into the analytics database.",
+    )
+    _add_shared_flags(collect, suppress_defaults=True)
+    collect.add_argument(
+        "--max",
+        type=int,
+        default=None,
+        dest="max_results",
+        help="Maximum videos to read per playlist (default: all available).",
+    )
+
     return parser
+
+
+async def _run_collection(args: argparse.Namespace) -> int:
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        print("error: DATABASE_URL is required for collect", file=sys.stderr)
+        return 1
+
+    pool = await asyncpg.create_pool(database_url)
+    try:
+        repository = AnalyticsRepository(pool)
+        playlists = await repository.active_playlists()
+        async with AsyncYouTube(language=args.language, region=args.region) as yt:
+            result = await AsyncCollectionService(yt, repository).collect(
+                [playlist.url for playlist in playlists],
+                max_results=args.max_results,
+                collect_statistics=True,
+            )
+        cli.print_collection_summary(result)
+        return 0 if result.status == "succeeded" else 1
+    finally:
+        await pool.close()
 
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the console script and ``python -m ytscrape``."""
     args = _build_parser().parse_args(argv)
+    if args.command == "collect":
+        try:
+            return asyncio.run(_run_collection(args))
+        except (OSError, asyncpg.PostgresError, YtScraperError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
     try:
         with YouTube(language=args.language, region=args.region) as yt:
             cli.print_banner(args, version=__version__)
