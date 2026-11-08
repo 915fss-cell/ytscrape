@@ -144,6 +144,9 @@ def parse_item(renderer_key: str, renderer: dict[str, Any]):
 
     Returns ``None`` for unknown types so callers can skip them.
     """
+    if renderer_key == "lockupViewModel":
+        video_renderer = _lockup_to_renderer(renderer)
+        return Video.from_renderer(video_renderer) if video_renderer else None
     factory = _RENDERER_FACTORIES.get(renderer_key)
     if factory is None:
         return None
@@ -164,7 +167,10 @@ def _lockup_to_renderer(lockup: dict[str, Any]) -> dict[str, Any] | None:
         "LOCKUP_CONTENT_TYPE_VIDEO",
     ):
         return None
-    meta = (lockup.get("metadata") or {}).get("lockupMetadataViewModel") or {}
+    metadata = lockup.get("metadata") or {}
+    meta = metadata.get("lockupMetadataViewModel") or {}
+    if not meta and "feedAdMetadataViewModel" in metadata:
+        return None
     title = (meta.get("title") or {}).get("content") or ""
     parts: list[str] = []
     rows = ((meta.get("metadata") or {}).get("contentMetadataViewModel") or {}).get(
