@@ -22,13 +22,32 @@ class AsyncPlaylistResults(AsyncExportable):
     """Async iterable playlist entries."""
 
     def __init__(self, client: Any, first_page: dict[str, Any], *, max_results: int | None = None, youtube: Any = None) -> None:
+        self._client = client
         self._buffer = parsing.parse_playlist_videos(first_page)
+        self._continuation = parsing.find_continuation(first_page)
         self._max_results = max_results
 
     def __aiter__(self):
         async def iterate():
-            for item in self._buffer[: self._max_results]:
-                yield item
+            yielded = 0
+            index = 0
+            seen_tokens: set[str] = set()
+            while True:
+                if self._max_results is not None and yielded >= self._max_results:
+                    return
+                if index < len(self._buffer):
+                    item = self._buffer[index]
+                    index += 1
+                    yielded += 1
+                    yield item
+                    continue
+                token = self._continuation
+                if not token or token in seen_tokens:
+                    return
+                seen_tokens.add(token)
+                page = await self._client.browse("", continuation=token)
+                self._continuation = parsing.find_continuation(page)
+                self._buffer.extend(parsing.parse_playlist_videos(page))
         return iterate()
 
 

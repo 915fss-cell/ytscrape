@@ -57,7 +57,7 @@ def to_dict(obj: Any) -> Any:
                 continue
             data[name] = to_dict(value)
         type_name = type(obj).__name__
-        if type_name in {"Video", "Channel", "Playlist"}:
+        if type_name in {"Video", "Channel", "Playlist", "PlaylistVideo"}:
             data.setdefault("type", type_name.lower())
         return data
     if isinstance(obj, (list, tuple)):

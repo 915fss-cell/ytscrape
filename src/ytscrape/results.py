@@ -31,7 +31,25 @@ class PlaylistResults:
         self._buffer = parsing.parse_playlist_videos(first_page)
 
     def __iter__(self):
-        yield from self._buffer[: self._max_results]
+        yielded = 0
+        seen_tokens: set[str] = set()
+        index = 0
+        while True:
+            if self._max_results is not None and yielded >= self._max_results:
+                return
+            if index < len(self._buffer):
+                item = self._buffer[index]
+                index += 1
+                yielded += 1
+                yield item
+                continue
+            token = self._continuation
+            if not token or token in seen_tokens:
+                return
+            seen_tokens.add(token)
+            page = self._client.browse("", continuation=token)
+            self._continuation = parsing.find_continuation(page)
+            self._buffer.extend(parsing.parse_playlist_videos(page))
 
 
 class SearchResults(Exportable):

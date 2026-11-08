@@ -11,6 +11,7 @@ from .async_client import AsyncInnerTubeClient
 from .async_results import (
     AsyncChannelVideos,
     AsyncCommentThread,
+    AsyncPlaylistResults,
     AsyncSearchResults,
 )
 from .client import RateLimiter, RetryPolicy, check_playability
@@ -189,6 +190,23 @@ class AsyncYouTube:
             max_results=max_results,
             youtube=self,
         )
+
+    @staticmethod
+    def _normalize_playlist_id(value: str) -> str:
+        value = value.strip()
+        if re.fullmatch(r"PL[\w-]+", value):
+            return value
+        parsed = urlparse(value)
+        from urllib.parse import parse_qs
+        values = parse_qs(parsed.query).get("list", [])
+        if len(values) != 1 or not re.fullmatch(r"PL[\w-]+", values[0]):
+            raise ParseError(f"Could not extract a playlist id from {value!r}.")
+        return values[0]
+
+    async def playlist(self, playlist: str, *, max_results: int | None = None) -> AsyncPlaylistResults:
+        playlist_id = self._normalize_playlist_id(playlist)
+        first_page = await self._client.browse(playlist_id)
+        return AsyncPlaylistResults(self._client, first_page, max_results=max_results, youtube=self)
 
     async def comments(
         self,

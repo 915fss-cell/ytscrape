@@ -13,7 +13,7 @@ from .exceptions import ParseError
 from .filters import CommentSort, SearchFilter
 from .locale import Country, Language, Locale
 from .models import ChannelDetails, VideoDetails, _about_continuation_token
-from .results import ChannelVideos, CommentThread, SearchResults
+from .results import ChannelVideos, CommentThread, PlaylistResults, SearchResults
 from .transcripts import (
     Transcript,
     TranscriptList,
@@ -237,6 +237,22 @@ class YouTube:
             max_results=max_results,
             youtube=self,
         )
+
+    @staticmethod
+    def _normalize_playlist_id(value: str) -> str:
+        value = value.strip()
+        if re.fullmatch(r"PL[\w-]+", value):
+            return value
+        parsed = urlparse(value)
+        values = parse_qs(parsed.query).get("list", [])
+        if len(values) != 1 or not re.fullmatch(r"PL[\w-]+", values[0]):
+            raise ParseError(f"Could not extract a playlist id from {value!r}.")
+        return values[0]
+
+    def playlist(self, playlist: str, *, max_results: int | None = None) -> PlaylistResults:
+        playlist_id = self._normalize_playlist_id(playlist)
+        first_page = self._client.browse(playlist_id)
+        return PlaylistResults(self._client, first_page, max_results=max_results, youtube=self)
 
     def comments(
         self,
