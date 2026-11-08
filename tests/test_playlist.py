@@ -148,6 +148,13 @@ class TestPlaylistCollection:
         values = PlaylistCollection(yt, ["PL1"], max_results=1)
         assert [item.video_id for item in values] == ["v1"]
 
+    def test_three_playlists_preserve_all_duplicate_associations(self) -> None:
+        video = PlaylistVideo(video_id="v1", title="Shared")
+        yt = FakeYouTube({"PL1": [video], "PL2": [video], "PL3": [video]})
+        values = list(PlaylistCollection(yt, ["PL1", "PL2", "PL3"]))
+        assert len(values) == 1
+        assert values[0].playlist_ids == ("PL1", "PL2", "PL3")
+
 
 class TestAsyncPlaylistCollection:
     def test_async_result_pagination(self) -> None:
@@ -155,6 +162,29 @@ class TestAsyncPlaylistCollection:
             client = AsyncPageClient([_page([_entry("v2")])])
             results = AsyncPlaylistResults(client, _page([_entry("v1")], "T1"))
             assert [item.video_id async for item in results] == ["v1", "v2"]
+
+        asyncio.run(body())
+
+    def test_three_playlists_preserve_all_duplicate_associations(self) -> None:
+        async def body() -> None:
+            video = PlaylistVideo(video_id="v1", title="Shared")
+
+            class AsyncFake:
+                @staticmethod
+                def _normalize_playlist_id(value: str) -> str:
+                    return value
+
+                def playlist(self, playlist_id: str, **_: Any) -> Any:
+                    return _AsyncItems([video])
+
+            values = [
+                item
+                async for item in AsyncPlaylistCollection(
+                    AsyncFake(), ["PL1", "PL2", "PL3"]
+                )
+            ]
+            assert len(values) == 1
+            assert values[0].playlist_ids == ("PL1", "PL2", "PL3")
 
         asyncio.run(body())
 
