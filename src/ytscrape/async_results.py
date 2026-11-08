@@ -13,9 +13,23 @@ from . import parsing
 from .export import AsyncExportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["AsyncChannelVideos", "AsyncCommentThread", "AsyncSearchResults"]
+__all__ = ["AsyncChannelVideos", "AsyncCommentThread", "AsyncPlaylistResults", "AsyncSearchResults"]
 
 SearchItem = Video | Channel | Playlist
+
+
+class AsyncPlaylistResults(AsyncExportable):
+    """Async iterable playlist entries."""
+
+    def __init__(self, client: Any, first_page: dict[str, Any], *, max_results: int | None = None, youtube: Any = None) -> None:
+        self._buffer = parsing.parse_playlist_videos(first_page)
+        self._max_results = max_results
+
+    def __aiter__(self):
+        async def iterate():
+            for item in self._buffer[: self._max_results]:
+                yield item
+        return iterate()
 
 
 class AsyncSearchResults(AsyncExportable):

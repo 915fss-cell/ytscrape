@@ -30,7 +30,12 @@ from __future__ import annotations
 import logging as _logging
 
 from .async_client import AsyncInnerTubeClient
-from .async_results import AsyncChannelVideos, AsyncCommentThread, AsyncSearchResults
+from .async_results import (
+    AsyncChannelVideos,
+    AsyncCommentThread,
+    AsyncPlaylistResults,
+    AsyncSearchResults,
+)
 from .async_youtube import AsyncYouTube
 from .client import InnerTubeClient, RateLimiter, RetryPolicy
 from .context import ContextCache, ContextExtractor, InnerTubeContext
@@ -58,12 +63,13 @@ from .models import (
     ChannelDetails,
     Comment,
     Playlist,
+    PlaylistVideo,
     Thumbnail,
     UnboundModelError,
     Video,
     VideoDetails,
 )
-from .results import ChannelVideos, CommentThread, SearchResults
+from .results import ChannelVideos, CommentThread, PlaylistResults, SearchResults
 from .transcripts import Transcript, TranscriptList, TranscriptSnippet, TranscriptTrack
 from .youtube import YouTube
 
@@ -77,6 +83,7 @@ __all__ = [
     "AsyncCommentThread",
     "AsyncInnerTubeClient",
     "AsyncSearchResults",
+    "AsyncPlaylistResults",
     "AsyncYouTube",
     "BotDetected",
     "CaptchaRequired",
@@ -98,6 +105,8 @@ __all__ = [
     "NoTranscriptFound",
     "ParseError",
     "Playlist",
+    "PlaylistResults",
+    "PlaylistVideo",
     "RateLimited",
     "RateLimiter",
     "RequestError",

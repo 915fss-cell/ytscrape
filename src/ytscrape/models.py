@@ -22,6 +22,7 @@ __all__ = [
     "ChannelDetails",
     "Comment",
     "Playlist",
+    "PlaylistVideo",
     "Thumbnail",
     "UnboundModelError",
     "Video",
@@ -1110,3 +1111,40 @@ def _count_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+@dataclass(frozen=True, slots=True)
+class PlaylistVideo:
+    """A video entry returned by a playlist browse request."""
+
+    video_id: str
+    title: str
+    index: int | None = None
+    channel_id: str | None = None
+    channel_title: str | None = None
+    duration: str | None = None
+    thumbnail: str | None = None
+
+    @classmethod
+    def from_renderer(cls, renderer: dict[str, Any]) -> PlaylistVideo:
+        title = _text(renderer.get("title")) or ""
+        index = _int_or_none(_text(renderer.get("index")))
+        thumbnails = (renderer.get("thumbnail") or {}).get("thumbnails") or []
+        thumbnail = thumbnails[-1].get("url") if thumbnails else None
+        owner = renderer.get("shortBylineText") or renderer.get("longBylineText")
+        channel_title = _text(owner)
+        channel_id = None
+        runs = owner.get("runs", []) if isinstance(owner, dict) else []
+        for run in runs:
+            channel_id = (run.get("navigationEndpoint") or {}).get("browseEndpoint", {}).get("browseId")
+            if channel_id:
+                break
+        return cls(
+            video_id=str(renderer.get("videoId") or ""),
+            title=title,
+            index=index,
+            channel_id=channel_id,
+            channel_title=channel_title,
+            duration=_text(renderer.get("lengthText")),
+            thumbnail=thumbnail,
+        )

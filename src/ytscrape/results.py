@@ -15,9 +15,23 @@ from . import parsing
 from .export import Exportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["ChannelVideos", "CommentThread", "SearchResults"]
+__all__ = ["ChannelVideos", "CommentThread", "PlaylistResults", "SearchResults"]
 
 SearchItem = Video | Channel | Playlist
+
+
+class PlaylistResults:
+    """Lazy playlist entries; constructed by playlist helpers."""
+
+    def __init__(self, client: Any, first_page: dict[str, Any], *, max_results: int | None = None, youtube: Any = None) -> None:
+        self._client = client
+        self._youtube = youtube
+        self._continuation = parsing.find_continuation(first_page)
+        self._max_results = max_results
+        self._buffer = parsing.parse_playlist_videos(first_page)
+
+    def __iter__(self):
+        yield from self._buffer[: self._max_results]
 
 
 class SearchResults(Exportable):

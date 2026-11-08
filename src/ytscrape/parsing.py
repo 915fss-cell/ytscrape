@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from dataclasses import replace
 from typing import Any
 
-from .models import Channel, Comment, Playlist, Video
+from .models import Channel, Comment, Playlist, PlaylistVideo, Video
 
 __all__ = [
     "CHANNEL_VIDEOS_PARAMS",
@@ -22,8 +22,10 @@ __all__ = [
     "find_reply_continuations",
     "iter_renderers",
     "parse_channel_videos",
+    "parse_playlist_videos",
     "parse_comments_page",
     "parse_item",
+    "parse_playlist_videos",
 ]
 
 # Maps a renderer key to the model responsible for parsing it.
@@ -31,6 +33,7 @@ _RENDERER_FACTORIES = {
     "videoRenderer": Video.from_renderer,
     "channelRenderer": Channel.from_renderer,
     "playlistRenderer": Playlist.from_renderer,
+    "playlistVideoRenderer": PlaylistVideo.from_renderer,
 }
 
 
@@ -84,6 +87,20 @@ def iter_renderers(
                 yield from _walk(item)
 
     yield from _walk(response)
+
+
+def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
+    """Parse playlist video entries from browse or continuation responses."""
+    videos: list[PlaylistVideo] = []
+    seen: set[str] = set()
+    for key, renderer in iter_renderers(response):
+        if key != "playlistVideoRenderer":
+            continue
+        item = PlaylistVideo.from_renderer(renderer)
+        if item.video_id and item.video_id not in seen:
+            seen.add(item.video_id)
+            videos.append(item)
+    return videos
 
 
 def parse_item(renderer_key: str, renderer: dict[str, Any]):
