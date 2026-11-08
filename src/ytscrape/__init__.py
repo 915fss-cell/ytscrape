@@ -32,6 +32,7 @@ import logging as _logging
 from .async_client import AsyncInnerTubeClient
 from .async_results import (
     AsyncChannelVideos,
+    AsyncPlaylistCollection,
     AsyncCommentThread,
     AsyncPlaylistResults,
     AsyncSearchResults,
@@ -63,13 +64,14 @@ from .models import (
     ChannelDetails,
     Comment,
     Playlist,
+    PlaylistDetails,
     PlaylistVideo,
     Thumbnail,
     UnboundModelError,
     Video,
     VideoDetails,
 )
-from .results import ChannelVideos, CommentThread, PlaylistResults, SearchResults
+from .results import ChannelVideos, CommentThread, PlaylistCollection, PlaylistResults, SearchResults
 from .transcripts import Transcript, TranscriptList, TranscriptSnippet, TranscriptTrack
 from .youtube import YouTube
 
@@ -83,6 +85,7 @@ __all__ = [
     "AsyncCommentThread",
     "AsyncInnerTubeClient",
     "AsyncSearchResults",
+    "AsyncPlaylistCollection",
     "AsyncPlaylistResults",
     "AsyncYouTube",
     "BotDetected",
@@ -105,6 +108,8 @@ __all__ = [
     "NoTranscriptFound",
     "ParseError",
     "Playlist",
+    "PlaylistCollection",
+    "PlaylistDetails",
     "PlaylistResults",
     "PlaylistVideo",
     "RateLimited",

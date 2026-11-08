@@ -22,6 +22,7 @@ __all__ = [
     "ChannelDetails",
     "Comment",
     "Playlist",
+    "PlaylistDetails",
     "PlaylistVideo",
     "Thumbnail",
     "UnboundModelError",
@@ -1114,7 +1115,18 @@ def _count_text(value: Any) -> str | None:
 
 
 @dataclass(frozen=True, slots=True)
-class PlaylistVideo:
+class PlaylistDetails(Exportable):
+    """Metadata discovered on a playlist browse response."""
+
+    playlist_id: str
+    title: str | None = None
+    owner_name: str | None = None
+    video_count: int | None = None
+    thumbnail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PlaylistVideo(Exportable):
     """A video entry returned by a playlist browse request."""
 
     video_id: str
@@ -1124,6 +1136,9 @@ class PlaylistVideo:
     channel_title: str | None = None
     duration: str | None = None
     thumbnail: str | None = None
+    playlist_ids: tuple[str, ...] = ()
+    is_unavailable: bool = False
+    unavailable_reason: str | None = None
 
     @classmethod
     def from_renderer(cls, renderer: dict[str, Any]) -> PlaylistVideo:

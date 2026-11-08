@@ -13,7 +13,7 @@ from . import parsing
 from .export import AsyncExportable
 from .models import Channel, Comment, Playlist, Video, bind
 
-__all__ = ["AsyncChannelVideos", "AsyncCommentThread", "AsyncPlaylistResults", "AsyncSearchResults"]
+__all__ = ["AsyncChannelVideos", "AsyncCommentThread", "AsyncPlaylistCollection", "AsyncPlaylistResults", "AsyncSearchResults"]
 
 SearchItem = Video | Channel | Playlist
 
@@ -49,6 +49,39 @@ class AsyncPlaylistResults(AsyncExportable):
                 self._continuation = parsing.find_continuation(page)
                 self._buffer.extend(parsing.parse_playlist_videos(page))
         return iterate()
+
+
+class AsyncPlaylistCollection:
+    """Async lazy deduplicating view over several playlists."""
+
+    def __init__(self, youtube: Any, playlists: Any, *, max_results: int | None = None) -> None:
+        self._youtube = youtube
+        self.playlist_ids = tuple(dict.fromkeys(youtube._normalize_playlist_id(p) for p in playlists))
+        self.max_results = max_results
+        self.failures: dict[str, Exception] = {}
+
+    async def __aiter__(self):
+        from dataclasses import replace
+        seen: dict[str, Any] = {}
+        emitted = 0
+        for playlist_id in self.playlist_ids:
+            try:
+                entries = await self._youtube.playlist(playlist_id, max_results=None)
+                async for entry in entries:
+                    if not entry.video_id:
+                        continue
+                    current = seen.get(entry.video_id)
+                    if current is None:
+                        current = replace(entry, playlist_ids=(playlist_id,))
+                        seen[entry.video_id] = current
+                        yield current
+                        emitted += 1
+                        if self.max_results is not None and emitted >= self.max_results:
+                            return
+                    elif playlist_id not in current.playlist_ids:
+                        seen[entry.video_id] = replace(current, playlist_ids=(*current.playlist_ids, playlist_id))
+            except Exception as exc:
+                self.failures[playlist_id] = exc
 
 
 class AsyncSearchResults(AsyncExportable):

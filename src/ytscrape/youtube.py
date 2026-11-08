@@ -13,7 +13,7 @@ from .exceptions import ParseError
 from .filters import CommentSort, SearchFilter
 from .locale import Country, Language, Locale
 from .models import ChannelDetails, VideoDetails, _about_continuation_token
-from .results import ChannelVideos, CommentThread, PlaylistResults, SearchResults
+from .results import ChannelVideos, CommentThread, PlaylistCollection, PlaylistResults, SearchResults
 from .transcripts import (
     Transcript,
     TranscriptList,
@@ -253,6 +253,10 @@ class YouTube:
         playlist_id = self._normalize_playlist_id(playlist)
         first_page = self._client.browse(playlist_id)
         return PlaylistResults(self._client, first_page, max_results=max_results, youtube=self)
+
+    def playlist_collection(self, playlists: object, *, max_results: int | None = None) -> PlaylistCollection:
+        """Return a lazy deduplicating collection for several playlists."""
+        return PlaylistCollection(self, playlists, max_results=max_results)
 
     def comments(
         self,

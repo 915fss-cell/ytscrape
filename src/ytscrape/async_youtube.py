@@ -11,6 +11,7 @@ from .async_client import AsyncInnerTubeClient
 from .async_results import (
     AsyncChannelVideos,
     AsyncCommentThread,
+    AsyncPlaylistCollection,
     AsyncPlaylistResults,
     AsyncSearchResults,
 )
@@ -207,6 +208,10 @@ class AsyncYouTube:
         playlist_id = self._normalize_playlist_id(playlist)
         first_page = await self._client.browse(playlist_id)
         return AsyncPlaylistResults(self._client, first_page, max_results=max_results, youtube=self)
+
+    def playlist_collection(self, playlists: object, *, max_results: int | None = None) -> AsyncPlaylistCollection:
+        """Return an async lazy deduplicating collection for several playlists."""
+        return AsyncPlaylistCollection(self, playlists, max_results=max_results)
 
     async def comments(
         self,
