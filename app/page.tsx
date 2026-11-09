@@ -1,5 +1,6 @@
-import { Activity, ArrowUpRight, BarChart3, Database, ListVideo, Radio, Target } from "lucide-react"
+import { ArrowUpRight, Database, ListVideo, Radio, Target } from "lucide-react"
 import { AddPlaylistForm } from "./components/add-playlist-form"
+import { Sidebar } from "./components/sidebar"
 import { getDashboardData, formatDate, formatNumber } from "../lib/dashboard"
 
 export const dynamic = "force-dynamic"
@@ -9,23 +10,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">SR</div>
-          <div>signalroom<small>youtube intelligence</small></div>
-        </div>
-        <nav className="nav" aria-label="Primary navigation">
-          <a className="active" href="#overview"><BarChart3 size={16} /><span>Overview</span></a>
-          <a href="#playlists"><ListVideo size={16} /><span>Playlists</span></a>
-          <a href="#runs"><Activity size={16} /><span>Collection runs</span></a>
-        </nav>
-        <div className="sidebar-bottom">
-          <span className="status-dot" />
-          Neon analytics connected
-          <br />
-          <span>Data updates after each collection run.</span>
-        </div>
-      </aside>
+      <Sidebar active="overview" />
 
       <main className="main" id="overview">
         <header className="topbar">
