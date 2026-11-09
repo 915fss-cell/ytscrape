@@ -99,17 +99,48 @@ def iter_renderers(
 
 
 def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
-    """Parse playlist video entries from browse or continuation responses."""
+    """Parse only the entries in the playlist's own item list.
+
+    A recursive renderer walk also finds recommendation shelves and related
+    video lockups on modern playlist pages, which must not become members of
+    the playlist.
+    """
+    containers: list[Any] = []
+
+    def _find_playlist_lists(node: Any) -> None:
+        if isinstance(node, dict):
+            playlist_list = node.get("playlistVideoListRenderer")
+            if isinstance(playlist_list, dict):
+                contents = playlist_list.get("contents")
+                if isinstance(contents, list):
+                    containers.extend(contents)
+            for value in node.values():
+                _find_playlist_lists(value)
+        elif isinstance(node, list):
+            for item in node:
+                _find_playlist_lists(item)
+
+    _find_playlist_lists(response)
+    if not containers:
+        containers = response.get("contents", []) if isinstance(response, dict) else []
+        if not isinstance(containers, list):
+            containers = []
+
     videos: list[PlaylistVideo] = []
     seen: set[str] = set()
-    for key, renderer in iter_renderers(response):
-        if key not in {"playlistVideoRenderer", "lockupViewModel"}:
+    for container in containers:
+        if not isinstance(container, dict):
             continue
-        item = PlaylistVideo.from_renderer(renderer)
-        dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
-        if dedupe_key not in seen:
-            seen.add(dedupe_key)
-            videos.append(item)
+        for key in ("playlistVideoRenderer", "lockupViewModel"):
+            renderer = container.get(key)
+            if not isinstance(renderer, dict):
+                continue
+            item = PlaylistVideo.from_renderer(renderer)
+            dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
+            if dedupe_key not in seen:
+                seen.add(dedupe_key)
+                videos.append(item)
+            break
     return videos
 
 

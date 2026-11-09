@@ -27,6 +27,17 @@ export type DashboardData = {
     videosDiscovered: number
     statisticsCollected: number
   }>
+  videos: Array<{
+    id: string
+    youtubeVideoId: string
+    title: string | null
+    channelName: string | null
+    playlists: string
+    viewCount: number | null
+    likeCount: number | null
+    commentCount: number | null
+    observedAt: string | null
+  }>
 }
 
 const emptyData: DashboardData = {
@@ -34,6 +45,7 @@ const emptyData: DashboardData = {
   playlists: [],
   stats: { activePlaylists: 0, trackedVideos: 0, totalViews: 0, milestones: 0 },
   runs: [],
+  videos: [],
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -43,7 +55,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   try {
     const sql = neon(process.env.DATABASE_URL)
-    const [playlists, stats, runs] = await Promise.all([
+    const [playlists, stats, runs, videos] = await Promise.all([
       sql`
         select
           p.id::text,
@@ -67,8 +79,17 @@ export async function getDashboardData(): Promise<DashboardData> {
         )
         select
           (select count(*)::int from playlists where is_active = true) as active_playlists,
-          (select count(*)::int from videos) as tracked_videos,
-          coalesce((select sum(view_count)::bigint from latest), 0) as total_views,
+          (select count(distinct pv.video_id)::int
+             from playlist_videos pv
+             join playlists p on p.id = pv.playlist_id
+             where pv.is_currently_member = true and p.is_active = true) as tracked_videos,
+          coalesce((select sum(latest.view_count)::bigint from latest where exists (
+            select 1 from playlist_videos pv
+            join playlists p on p.id = pv.playlist_id
+            where pv.video_id = latest.video_id
+              and pv.is_currently_member = true
+              and p.is_active = true
+          )), 0) as total_views,
           (select count(*)::int from video_milestones where status = 'reached') as milestones
       `,
       sql`
@@ -83,6 +104,41 @@ export async function getDashboardData(): Promise<DashboardData> {
         from collection_runs
         order by started_at desc
         limit 5
+      `,
+      sql`
+        with latest as (
+          select distinct on (video_id)
+            video_id, view_count, like_count, comment_count, observed_at
+          from video_statistics_snapshots
+          order by video_id, observed_at desc
+        )
+        select
+          v.id::text,
+          v.youtube_video_id,
+          v.title,
+          v.channel_name,
+          coalesce((
+            select string_agg(coalesce(p.title, p.youtube_playlist_id), ', ' order by p.title)
+            from playlist_videos pv2
+            join playlists p on p.id = pv2.playlist_id
+            where pv2.video_id = v.id and pv2.is_currently_member = true
+          ), '') as playlists,
+          latest.view_count,
+          latest.like_count,
+          latest.comment_count,
+          latest.observed_at
+        from videos v
+        left join latest on latest.video_id = v.id
+        where exists (
+          select 1
+          from playlist_videos pv3
+          join playlists p3 on p3.id = pv3.playlist_id
+          where pv3.video_id = v.id
+            and pv3.is_currently_member = true
+            and p3.is_active = true
+        )
+        order by coalesce(latest.view_count, 0) desc, v.updated_at desc
+        limit 100
       `,
     ])
 
@@ -113,6 +169,17 @@ export async function getDashboardData(): Promise<DashboardData> {
         playlistsFailed: Number(row.playlists_failed ?? 0),
         videosDiscovered: Number(row.videos_discovered ?? 0),
         statisticsCollected: Number(row.statistics_collected ?? 0),
+      })),
+      videos: videos.map((row) => ({
+        id: String(row.id),
+        youtubeVideoId: String(row.youtube_video_id),
+        title: row.title ? String(row.title) : null,
+        channelName: row.channel_name ? String(row.channel_name) : null,
+        playlists: String(row.playlists ?? ""),
+        viewCount: row.view_count == null ? null : Number(row.view_count),
+        likeCount: row.like_count == null ? null : Number(row.like_count),
+        commentCount: row.comment_count == null ? null : Number(row.comment_count),
+        observedAt: row.observed_at ? new Date(String(row.observed_at)).toISOString() : null,
       })),
     }
   } catch (error) {
