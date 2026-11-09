@@ -37,7 +37,11 @@ class CollectionResult:
 
     @property
     def status(self) -> str:
-        if self.playlists_failed == 0 and not self.errors and self.videos_discovered > 0:
+        if (
+            self.playlists_failed == 0
+            and not self.errors
+            and self.videos_discovered > 0
+        ):
             return "succeeded"
         if self.playlists_succeeded == 0 or self.videos_discovered == 0:
             return "failed"
