@@ -86,6 +86,10 @@ h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.06em; margin: 8px 0 8p
 .modal input { display: block; width: 100%; margin-top: 8px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; background: #0c1116; color: var(--text); outline: none; font-size: 12px; }
 .modal input:focus { border-color: var(--lime); box-shadow: 0 0 0 3px rgba(210,243,107,.1); }
 .full { width: 100%; margin-top: 5px; }
+.collect-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.collect-success, .collect-error { font-size: 11px; max-width: 260px; }
+.collect-success { color: var(--lime); }
+.collect-error { color: var(--red); }
 .form-error, .form-success { font-size: 11px; line-height: 1.5; margin: 0 0 14px; }
 .form-error { color: var(--red); }
 .form-success { color: var(--lime); }

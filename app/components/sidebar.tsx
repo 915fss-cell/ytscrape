@@ -1,0 +1,5 @@
+import { Activity, BarChart3, ListVideo } from "lucide-react"
+
+export function Sidebar({ active }: { active: "overview" | "playlists" | "runs" }) {
+  return <aside className="sidebar"><div className="brand"><div className="brand-mark">SR</div><div>signalroom<small>youtube intelligence</small></div></div><nav className="nav" aria-label="Primary navigation"><a className={active === "overview" ? "active" : ""} href="/"><BarChart3 size={16} /><span>Overview</span></a><a className={active === "playlists" ? "active" : ""} href="/playlists"><ListVideo size={16} /><span>Playlists</span></a><a className={active === "runs" ? "active" : ""} href="/runs"><Activity size={16} /><span>Collection runs</span></a></nav><div className="sidebar-bottom"><span className="status-dot" />Neon analytics connected<br /><span>Data updates after each collection run.</span></div></aside>
+}
