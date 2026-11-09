@@ -109,11 +109,12 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
 
     def _find_playlist_lists(node: Any) -> None:
         if isinstance(node, dict):
-            playlist_list = node.get("playlistVideoListRenderer")
-            if isinstance(playlist_list, dict):
-                contents = playlist_list.get("contents")
-                if isinstance(contents, list):
-                    containers.extend(contents)
+            for list_key in ("playlistVideoListRenderer", "playlistPanelVideoListRenderer"):
+                playlist_list = node.get(list_key)
+                if isinstance(playlist_list, dict):
+                    contents = playlist_list.get("contents")
+                    if isinstance(contents, list):
+                        containers.extend(contents)
             for value in node.values():
                 _find_playlist_lists(value)
         elif isinstance(node, list):
@@ -138,13 +139,14 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
             if not isinstance(container, dict):
                 continue
             _append(container.get("playlistVideoRenderer"))
+            _append(container.get("playlistPanelVideoRenderer"))
             _append(container.get("lockupViewModel"))
     else:
         # Some YouTube responses omit playlistVideoListRenderer entirely. In
         # those responses, playlistVideoRenderer is still the authoritative
         # playlist item marker; do not include unrelated lockup recommendations.
         for key, renderer in iter_renderers(response):
-            if key == "playlistVideoRenderer":
+            if key in {"playlistVideoRenderer", "playlistPanelVideoRenderer"}:
                 _append(renderer)
     return videos
 
