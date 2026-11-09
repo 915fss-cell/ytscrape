@@ -79,8 +79,17 @@ export async function getDashboardData(): Promise<DashboardData> {
         )
         select
           (select count(*)::int from playlists where is_active = true) as active_playlists,
-          (select count(*)::int from videos) as tracked_videos,
-          coalesce((select sum(view_count)::bigint from latest), 0) as total_views,
+          (select count(distinct pv.video_id)::int
+             from playlist_videos pv
+             join playlists p on p.id = pv.playlist_id
+             where pv.is_currently_member = true and p.is_active = true) as tracked_videos,
+          coalesce((select sum(latest.view_count)::bigint from latest where exists (
+            select 1 from playlist_videos pv
+            join playlists p on p.id = pv.playlist_id
+            where pv.video_id = latest.video_id
+              and pv.is_currently_member = true
+              and p.is_active = true
+          )), 0) as total_views,
           (select count(*)::int from video_milestones where status = 'reached') as milestones
       `,
       sql`
@@ -120,6 +129,14 @@ export async function getDashboardData(): Promise<DashboardData> {
           latest.observed_at
         from videos v
         left join latest on latest.video_id = v.id
+        where exists (
+          select 1
+          from playlist_videos pv3
+          join playlists p3 on p3.id = pv3.playlist_id
+          where pv3.video_id = v.id
+            and pv3.is_currently_member = true
+            and p3.is_active = true
+        )
         order by coalesce(latest.view_count, 0) desc, v.updated_at desc
         limit 100
       `,
