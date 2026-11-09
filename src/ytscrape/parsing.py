@@ -121,26 +121,31 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
                 _find_playlist_lists(item)
 
     _find_playlist_lists(response)
-    if not containers:
-        containers = response.get("contents", []) if isinstance(response, dict) else []
-        if not isinstance(containers, list):
-            containers = []
-
     videos: list[PlaylistVideo] = []
     seen: set[str] = set()
-    for container in containers:
-        if not isinstance(container, dict):
-            continue
-        for key in ("playlistVideoRenderer", "lockupViewModel"):
-            renderer = container.get(key)
-            if not isinstance(renderer, dict):
+
+    def _append(renderer: Any) -> None:
+        if not isinstance(renderer, dict):
+            return
+        item = PlaylistVideo.from_renderer(renderer)
+        dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
+        if dedupe_key not in seen:
+            seen.add(dedupe_key)
+            videos.append(item)
+
+    if containers:
+        for container in containers:
+            if not isinstance(container, dict):
                 continue
-            item = PlaylistVideo.from_renderer(renderer)
-            dedupe_key = item.video_id or f"unavailable:{item.index}:{item.title}"
-            if dedupe_key not in seen:
-                seen.add(dedupe_key)
-                videos.append(item)
-            break
+            _append(container.get("playlistVideoRenderer"))
+            _append(container.get("lockupViewModel"))
+    else:
+        # Some YouTube responses omit playlistVideoListRenderer entirely. In
+        # those responses, playlistVideoRenderer is still the authoritative
+        # playlist item marker; do not include unrelated lockup recommendations.
+        for key, renderer in iter_renderers(response):
+            if key == "playlistVideoRenderer":
+                _append(renderer)
     return videos
 
 
