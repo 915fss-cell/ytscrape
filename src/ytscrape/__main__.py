@@ -201,7 +201,7 @@ async def _run_collection(args: argparse.Namespace) -> int:
                 collect_statistics=True,
             )
         cli.print_collection_summary(result)
-        return 0 if result.status == "succeeded" else 1
+        return 0 if result.status in {"succeeded", "partial"} else 1
     finally:
         await pool.close()
 
