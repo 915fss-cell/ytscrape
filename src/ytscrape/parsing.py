@@ -138,9 +138,15 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
         for container in containers:
             if not isinstance(container, dict):
                 continue
-            _append(container.get("playlistVideoRenderer"))
-            _append(container.get("playlistPanelVideoRenderer"))
-            _append(container.get("lockupViewModel"))
+            found_item = False
+            for key, renderer in iter_renderers(container):
+                if key in {"playlistVideoRenderer", "playlistPanelVideoRenderer", "lockupViewModel"}:
+                    _append(renderer)
+                    found_item = True
+            if not found_item:
+                _append(container.get("playlistVideoRenderer"))
+                _append(container.get("playlistPanelVideoRenderer"))
+                _append(container.get("lockupViewModel"))
     else:
         # Some YouTube responses omit playlistVideoListRenderer entirely. In
         # those responses, playlistVideoRenderer is still the authoritative
