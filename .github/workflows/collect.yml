@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
       - name: Install project
-        run: uv sync
+        run: uv sync --extra async
       - name: Collect analytics
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
