@@ -88,6 +88,17 @@ h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.06em; margin: 8px 0 8p
 .full { width: 100%; margin-top: 5px; }
 .collect-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .collect-success, .collect-error { font-size: 11px; max-width: 260px; }
+.data-count { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 780px; }
+.data-table th { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 400; letter-spacing: .08em; text-align: left; text-transform: uppercase; padding: 13px 18px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.data-table td { color: var(--soft); font-size: 11px; padding: 15px 18px; border-bottom: 1px solid #1d252d; white-space: nowrap; }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover { background: rgba(255,255,255,.025); }
+.video-title { display: flex; align-items: flex-start; gap: 9px; min-width: 260px; white-space: normal; }
+.video-title a { color: var(--text); display: inline-flex; align-items: center; gap: 5px; font-weight: 700; text-decoration: none; }
+.video-title a:hover { color: var(--lime); }
+.video-title small { display: block; color: var(--muted); font-size: 10px; margin-top: 5px; }
 .collect-success { color: var(--lime); }
 .collect-error { color: var(--red); }
 .form-error, .form-success { font-size: 11px; line-height: 1.5; margin: 0 0 14px; }
