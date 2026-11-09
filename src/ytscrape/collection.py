@@ -55,9 +55,11 @@ class AsyncCollectionService:
         self,
         source: AsyncPlaylistSource,
         repository: AnalyticsRepository,
+        statistics_source: Any | None = None,
     ) -> None:
         self.source = source
         self.repository = repository
+        self.statistics_source = statistics_source
 
     async def collect(
         self,
@@ -102,12 +104,38 @@ class AsyncCollectionService:
                 result.videos_discovered += count
                 result.new_videos += len(set(item_ids) - existing_ids)
                 if collect_statistics:
+                    statistics = (
+                        await self.statistics_source.statistics(
+                            list(dict.fromkeys(item_ids))
+                        )
+                        if self.statistics_source is not None
+                        else {}
+                    )
                     for video_id in dict.fromkeys(item_ids):
                         try:
-                            video_details = await self.source.video(video_id)
-                            snapshot_id = await self.repository.record_statistics(
-                                run_id, video_id, video_details
-                            )
+                            if self.statistics_source is not None:
+                                (
+                                    video_details,
+                                    like_count,
+                                    comment_count,
+                                    raw_statistics,
+                                ) = statistics[video_id]
+                            else:
+                                video_details = await self.source.video(video_id)
+                                like_count = comment_count = raw_statistics = None
+                            if self.statistics_source is not None:
+                                snapshot_id = await self.repository.record_statistics(
+                                    run_id,
+                                    video_id,
+                                    video_details,
+                                    like_count=like_count,
+                                    comment_count=comment_count,
+                                    raw_statistics=raw_statistics,
+                                )
+                            else:
+                                snapshot_id = await self.repository.record_statistics(
+                                    run_id, video_id, video_details
+                                )
                             result.statistics_collected += 1
                             result.milestones_reached += (
                                 await self.repository.evaluate_milestones(

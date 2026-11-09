@@ -18,6 +18,7 @@ import asyncpg
 from . import AsyncYouTube, YouTube, __version__
 from . import _cli as cli
 from .collection import AsyncCollectionService
+from .data_api import YouTubeDataAPI
 from .exceptions import YtScraperError
 from .filters import CommentSort, SearchFilter
 from .persistence import AnalyticsRepository
@@ -190,12 +191,20 @@ async def _run_collection(args: argparse.Namespace) -> int:
         print("error: DATABASE_URL is required for collect", file=sys.stderr)
         return 1
 
+    api_key = os.environ.get("YOUTUBE_API_KEY")
+    if not api_key:
+        print("error: YOUTUBE_API_KEY is required for collect", file=sys.stderr)
+        return 1
+
     pool = await asyncpg.create_pool(database_url)
+    data_api = YouTubeDataAPI(api_key)
     try:
         repository = AnalyticsRepository(pool)
         playlists = await repository.active_playlists()
         async with AsyncYouTube(language=args.language, region=args.region) as yt:
-            result = await AsyncCollectionService(yt, repository).collect(
+            result = await AsyncCollectionService(
+                yt, repository, statistics_source=data_api
+            ).collect(
                 [playlist.url for playlist in playlists],
                 max_results=args.max_results,
                 collect_statistics=True,
@@ -203,6 +212,7 @@ async def _run_collection(args: argparse.Namespace) -> int:
         cli.print_collection_summary(result)
         return 0 if result.status in {"succeeded", "partial"} else 1
     finally:
+        await data_api.aclose()
         await pool.close()
 
 
