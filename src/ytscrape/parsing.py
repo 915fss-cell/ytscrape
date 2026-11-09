@@ -109,7 +109,10 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
 
     def _find_playlist_lists(node: Any) -> None:
         if isinstance(node, dict):
-            for list_key in ("playlistVideoListRenderer", "playlistPanelVideoListRenderer"):
+            for list_key in (
+                "playlistVideoListRenderer",
+                "playlistPanelVideoListRenderer",
+            ):
                 playlist_list = node.get(list_key)
                 if isinstance(playlist_list, dict):
                     contents = playlist_list.get("contents")
@@ -122,6 +125,30 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
                 _find_playlist_lists(item)
 
     _find_playlist_lists(response)
+    if not containers and isinstance(response, dict):
+        # Modern browse responses expose playlist entries as lockup view
+        # models inside the first item section rather than a playlist list
+        # renderer. Other sections contain recommendations and must be ignored.
+        content_root = response.get("contents", {})
+        tabs = []
+        if isinstance(content_root, dict):
+            tabs = content_root.get("twoColumnBrowseResultsRenderer", {}).get(
+                "tabs", []
+            )
+        for tab in tabs if isinstance(tabs, list) else []:
+            content = tab.get("tabRenderer", {}).get("content", {})
+            sections = content.get("sectionListRenderer", {}).get("contents", [])
+            for section in sections if isinstance(sections, list) else []:
+                item_section = section.get("itemSectionRenderer", {})
+                section_items = item_section.get("contents", [])
+                if isinstance(section_items, list) and section_items:
+                    containers.extend(section_items)
+                    break
+            if containers:
+                break
+        if not containers and isinstance(content_root, list):
+            containers.extend(content_root)
+
     videos: list[PlaylistVideo] = []
     seen: set[str] = set()
 
@@ -140,7 +167,11 @@ def parse_playlist_videos(response: dict[str, Any]) -> list[PlaylistVideo]:
                 continue
             found_item = False
             for key, renderer in iter_renderers(container):
-                if key in {"playlistVideoRenderer", "playlistPanelVideoRenderer", "lockupViewModel"}:
+                if key in {
+                    "playlistVideoRenderer",
+                    "playlistPanelVideoRenderer",
+                    "lockupViewModel",
+                }:
                     _append(renderer)
                     found_item = True
             if not found_item:
