@@ -162,8 +162,14 @@ class AsyncYouTube:
     async def video(self, video: str) -> VideoDetails:
         """Fetch detailed metadata for a single video."""
         video_id = YouTube._normalize_video_id(video)
-        response = await self._client.player(video_id)
-        check_playability(response, video_id)
+        try:
+            response = await self._client.player(video_id, client_name="ANDROID")
+            check_playability(response, video_id)
+        except Exception:
+            # GitHub Actions IPs are frequently challenged by the web client;
+            # retain the web request as a compatibility fallback.
+            response = await self._client.player(video_id, client_name="WEB")
+            check_playability(response, video_id)
         return VideoDetails.from_player_response(response).bind(self)
 
     async def channel(self, channel: str) -> ChannelDetails:
