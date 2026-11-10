@@ -29,6 +29,7 @@ jobs:
       - name: Collect analytics
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
           if [ -n "${{ inputs.max_results }}" ]; then
             uv run ytscrape collect --max "${{ inputs.max_results }}"
