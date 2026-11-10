@@ -121,6 +121,7 @@ h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.06em; margin: 8px 0 8p
 .history-calendar label { display: block; color: var(--muted); font: 10px 'DM Mono', monospace; text-transform: uppercase; }
 .history-calendar input { display: block; margin-top: 5px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-raised); color: var(--text); font: 12px 'DM Mono', monospace; }
 .history-calendar .button { padding: 8px 10px; }
+.history-note { color: var(--muted); font: 10px 'DM Mono', monospace; text-transform: uppercase; }
 @media (max-width: 700px) { .history-controls { align-items: stretch; flex-direction: column; gap: 10px; } .history-calendar { align-items: stretch; flex-direction: column; } }
 @media (max-width: 700px) { .video-detail-hero img { width: 140px; } .metric-grid { grid-template-columns: 1fr; } }
 .video-title a { color: var(--text); display: inline-flex; align-items: center; gap: 5px; font-weight: 700; text-decoration: none; }
