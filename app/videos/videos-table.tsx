@@ -1,6 +1,7 @@
 "use client"
 
-import { ExternalLink, PlaySquare } from "lucide-react"
+import Link from "next/link"
+import { ExternalLink } from "lucide-react"
 import { useMemo, useState } from "react"
 import { formatDate, formatNumber } from "../../lib/dashboard"
 
@@ -26,6 +27,6 @@ export function VideosTable({ videos }: { videos: Video[] }) {
       <button className={selectedPlaylist === "All" ? "video-tab active" : "video-tab"} onClick={() => setSelectedPlaylist("All")} role="tab" aria-selected={selectedPlaylist === "All"}>{`All (${videos.length})`}</button>
       {playlists.map((playlist) => <button key={playlist} className={selectedPlaylist === playlist ? "video-tab active" : "video-tab"} onClick={() => setSelectedPlaylist(playlist)} role="tab" aria-selected={selectedPlaylist === playlist}>{`${playlist} (${videos.filter((video) => video.playlists.split(", ").includes(playlist)).length})`}</button>)}
     </div>
-    {filteredVideos.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Video</th><th>Playlist</th><th>Views</th><th>Likes</th><th>Comments</th><th>Observed</th></tr></thead><tbody>{filteredVideos.map((video) => <tr key={video.id}><td><div className="video-title"><img className="video-thumb" src={`https://i.ytimg.com/vi/${video.youtubeVideoId}/mqdefault.jpg`} alt="" loading="lazy" /><div><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noreferrer">{video.title || video.youtubeVideoId}<ExternalLink size={11} /></a><small>{video.channelName || "Channel unavailable"}</small></div></div></td><td>{video.playlists || "Unassigned"}</td><td>{video.viewCount == null ? "—" : formatNumber(video.viewCount)}</td><td>{video.likeCount == null ? "—" : formatNumber(video.likeCount)}</td><td>{video.commentCount == null ? "—" : formatNumber(video.commentCount)}</td><td>{formatDate(video.observedAt)}</td></tr>)}</tbody></table></div> : <div className="empty">No videos are assigned to this playlist.</div>}
+    {filteredVideos.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Video</th><th>Playlist</th><th>Views</th><th>Likes</th><th>Comments</th><th>Observed</th></tr></thead><tbody>{filteredVideos.map((video) => <tr key={video.id}><td><div className="video-title"><img className="video-thumb" src={`https://i.ytimg.com/vi/${video.youtubeVideoId}/mqdefault.jpg`} alt="" loading="lazy" /><div><Link className="video-detail-link" href={`/videos/${video.youtubeVideoId}`}>{video.title || video.youtubeVideoId}</Link><a className="youtube-link" href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noreferrer" aria-label="Open video on YouTube"><ExternalLink size={11} /></a><small>{video.channelName || "Channel unavailable"}</small></div></div></td><td>{video.playlists || "Unassigned"}</td><td>{video.viewCount == null ? "—" : formatNumber(video.viewCount)}</td><td>{video.likeCount == null ? "—" : formatNumber(video.likeCount)}</td><td>{video.commentCount == null ? "—" : formatNumber(video.commentCount)}</td><td>{formatDate(video.observedAt)}</td></tr>)}</tbody></table></div> : <div className="empty">No videos are assigned to this playlist.</div>}
   </>
 }
