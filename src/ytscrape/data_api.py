@@ -40,6 +40,8 @@ class YouTubeDataAPI:
                     VideoDetails(
                         video_id=video_id,
                         title=snippet.get("title"),
+                        channel=snippet.get("channelTitle"),
+                        channel_id=snippet.get("channelId"),
                         views=_integer(stats.get("viewCount")),
                     ),
                     _integer(stats.get("likeCount")),

@@ -304,6 +304,20 @@ class AnalyticsRepository:
         raw_statistics: Mapping[str, Any] | None = None,
     ) -> str:
         """Insert one idempotent statistics snapshot for a run."""
+        await self.pool.execute(
+            """
+            update videos
+            set channel_name = coalesce($2, channel_name),
+                youtube_channel_id = coalesce($3, youtube_channel_id),
+                title = coalesce($4, title),
+                updated_at = now()
+            where youtube_video_id = $1
+            """,
+            video_id,
+            details.channel,
+            details.channel_id,
+            details.title,
+        )
         row = await self.pool.fetchrow(
             """
             insert into video_statistics_snapshots (
