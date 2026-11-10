@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Signalroom | YouTube analytics",
+  title: "FelixTube | YouTube analytics",
   description: "Monitor playlist collection runs, video performance, and milestones.",
 }
 
