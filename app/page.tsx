@@ -52,7 +52,7 @@ function StatCard({ icon, label, value, detail }: { icon: React.ReactNode; label
 }
 
 function PlaylistRow({ playlist }: { playlist: Awaited<ReturnType<typeof getDashboardData>>["playlists"][number] }) {
-  return <div className="playlist-row"><div className="playlist-badge"><ListVideo size={17} /></div><div className="playlist-copy"><p className="playlist-name">{playlist.title || playlist.youtubePlaylistId}</p><div className="playlist-sub">Last collected {formatDate(playlist.lastCollected)}</div></div><div className="playlist-count">{playlist.videoCount}<small>current videos</small></div></div>
+  return <div className="playlist-row"><div className="playlist-badge"><ListVideo size={17} /></div><div className="playlist-copy"><p className="playlist-name">{playlist.title || playlist.youtubePlaylistId}</p><div className="playlist-sub">Last collected {formatDate(playlist.lastCollected)}</div></div><div className="playlist-count">{playlist.videoCount}<span className="playlist-count-label">current videos</span></div></div>
 }
 
 function RunRow({ run }: { run: Awaited<ReturnType<typeof getDashboardData>>["runs"][number] }) {

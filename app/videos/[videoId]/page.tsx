@@ -48,7 +48,7 @@ export default async function VideoDetailPage({ params, searchParams }: PageProp
 
         <section className="video-detail-hero">
           <img src={`https://i.ytimg.com/vi/${history.video.youtubeVideoId}/hqdefault.jpg`} alt="" />
-          <div><span>{history.video.channelName || "Channel unavailable"}</span><small>{history.video.playlists || "Unassigned"}</small></div>
+          <div><span>{history.video.channelName || "Channel unavailable"}</span><span className="video-detail-playlists">{history.video.playlists || "Unassigned"}</span></div>
         </section>
 
         <section className="metric-grid">
