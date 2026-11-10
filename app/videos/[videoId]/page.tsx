@@ -25,6 +25,11 @@ export default async function VideoDetailPage({ params, searchParams }: PageProp
   const displayedSnapshots = historyMode === "daily" ? dailySnapshots : daySnapshots
   const minDate = availableDates[0] || undefined
   const maxDate = availableDates.at(-1) || undefined
+  const formatDelta = (current: number | null, previous: number | null | undefined) => {
+    if (current == null || previous == null || previous === undefined) return "—"
+    const delta = current - previous
+    return delta > 0 ? `+${formatNumber(delta)}` : formatNumber(delta)
+  }
 
   return (
     <div className="shell">
@@ -74,8 +79,8 @@ export default async function VideoDetailPage({ params, searchParams }: PageProp
           {displayedSnapshots.length ? (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>Observed</th><th>Views</th><th>Likes</th><th>Comments</th></tr></thead>
-                <tbody>{displayedSnapshots.map((snapshot) => <tr key={snapshot.observedAt}><td>{formatDateTime(snapshot.observedAt)}</td><td>{snapshot.viewCount == null ? "—" : formatNumber(snapshot.viewCount)}</td><td>{snapshot.likeCount == null ? "—" : formatNumber(snapshot.likeCount)}</td><td>{snapshot.commentCount == null ? "—" : formatNumber(snapshot.commentCount)}</td></tr>)}</tbody>
+                <thead><tr><th>Observed</th><th>Views</th><th>Views change</th><th>Likes</th><th>Likes change</th><th>Comments</th><th>Comments change</th></tr></thead>
+                <tbody>{displayedSnapshots.map((snapshot, index) => { const previous = historyMode === "daily" ? displayedSnapshots[index - 1] : displayedSnapshots[index + 1]; return <tr key={snapshot.observedAt}><td>{formatDateTime(snapshot.observedAt)}</td><td>{snapshot.viewCount == null ? "—" : formatNumber(snapshot.viewCount)}</td><td className={snapshot.viewCount != null && previous?.viewCount != null && snapshot.viewCount - previous.viewCount > 0 ? "delta-positive" : snapshot.viewCount != null && previous?.viewCount != null && snapshot.viewCount - previous.viewCount < 0 ? "delta-negative" : "delta-neutral"}>{formatDelta(snapshot.viewCount, previous?.viewCount)}</td><td>{snapshot.likeCount == null ? "—" : formatNumber(snapshot.likeCount)}</td><td className={snapshot.likeCount != null && previous?.likeCount != null && snapshot.likeCount - previous.likeCount > 0 ? "delta-positive" : snapshot.likeCount != null && previous?.likeCount != null && snapshot.likeCount - previous.likeCount < 0 ? "delta-negative" : "delta-neutral"}>{formatDelta(snapshot.likeCount, previous?.likeCount)}</td><td>{snapshot.commentCount == null ? "—" : formatNumber(snapshot.commentCount)}</td><td className={snapshot.commentCount != null && previous?.commentCount != null && snapshot.commentCount - previous.commentCount > 0 ? "delta-positive" : snapshot.commentCount != null && previous?.commentCount != null && snapshot.commentCount - previous.commentCount < 0 ? "delta-negative" : "delta-neutral"}>{formatDelta(snapshot.commentCount, previous?.commentCount)}</td></tr> })}</tbody>
               </table>
             </div>
           ) : <div className="empty">{historyMode === "daily" ? "No daily snapshots have been saved yet." : "No hourly snapshots were saved for this day."}</div>}
