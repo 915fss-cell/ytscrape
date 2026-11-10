@@ -199,7 +199,14 @@ export function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value))
 }
 
+const KST_TIME_ZONE = "Asia/Seoul"
+
 export function formatDateTime(value: string | null) {
   if (!value) return "Never collected"
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value))
+  return new Intl.DateTimeFormat("en-US", { timeZone: KST_TIME_ZONE, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value))
+}
+
+export function getKstDate(value: string | null) {
+  if (!value) return ""
+  return new Intl.DateTimeFormat("en-CA", { timeZone: KST_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value))
 }
