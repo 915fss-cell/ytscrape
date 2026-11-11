@@ -1,17 +1,8 @@
-import { timingSafeEqual } from "node:crypto"
 import { neon } from "@neondatabase/serverless"
 import { NextResponse } from "next/server"
+import { isFelixSupportApiAuthorized } from "../../../../../lib/felix-support-api"
 
 export const dynamic = "force-dynamic"
-
-function isAuthorized(request: Request, expectedToken: string) {
-  const authorization = request.headers.get("authorization") ?? ""
-  if (!authorization.toLowerCase().startsWith("bearer ")) return false
-
-  const provided = Buffer.from(authorization.slice(7))
-  const expected = Buffer.from(expectedToken)
-  return provided.length === expected.length && timingSafeEqual(provided, expected)
-}
 
 function parseInteger(value: string | null, fallback: number, maximum: number) {
   if (value === null) return fallback
@@ -26,7 +17,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Hourly data API is not configured." }, { status: 503 })
   }
 
-  if (!isAuthorized(request, token)) {
+  if (!isFelixSupportApiAuthorized(request, token)) {
     return NextResponse.json(
       { error: "Unauthorized." },
       { status: 401, headers: { "WWW-Authenticate": "Bearer" } },
